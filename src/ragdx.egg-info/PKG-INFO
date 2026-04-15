@@ -1,0 +1,67 @@
+Metadata-Version: 2.4
+Name: ragdx
+Version: 0.3.0
+Summary: RAG evaluation, diagnosis, and optimization workbench integrating Ragas, RAGChecker, DSPy, and AutoRAG
+Author: OpenAI
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pydantic>=2.7
+Requires-Dist: pandas>=2.2
+Requires-Dist: numpy>=1.26
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: plotly>=5.22
+Requires-Dist: streamlit>=1.35
+Requires-Dist: typer>=0.12
+Requires-Dist: rich>=13.7
+Provides-Extra: ragas
+Requires-Dist: ragas>=0.3; extra == "ragas"
+Provides-Extra: ragchecker
+Requires-Dist: ragchecker>=0.1; extra == "ragchecker"
+Provides-Extra: dspy
+Requires-Dist: dspy>=2.6; extra == "dspy"
+Provides-Extra: autorag
+Requires-Dist: AutoRAG>=0.3; extra == "autorag"
+Provides-Extra: openai
+Requires-Dist: openai>=1.30; extra == "openai"
+Provides-Extra: all
+Requires-Dist: ragas>=0.3; extra == "all"
+Requires-Dist: ragchecker>=0.1; extra == "all"
+Requires-Dist: dspy>=2.6; extra == "all"
+Requires-Dist: AutoRAG>=0.3; extra == "all"
+Requires-Dist: openai>=1.30; extra == "all"
+
+# ragdx v3
+
+A Python library for RAG evaluation, diagnosis, and optimization planning.
+
+## What it does
+
+- normalizes evaluation outputs from Ragas and RAGChecker into a unified schema
+- diagnoses weak retrieval, generation, citation, and end-to-end behavior
+- stages DSPy and AutoRAG optimization plans
+- stores runs, compares baselines, and exports markdown reports
+- provides a simple Streamlit dashboard
+
+## Install
+
+```bash
+pip install -e .
+```
+
+## CLI
+
+```bash
+ragdx diagnose --eval-json examples/demo_evaluation.json
+ragdx save --eval-json examples/demo_evaluation.json --name demo-run --tags demo,baseline
+ragdx runs
+ragdx compare --current-eval-json examples/demo_evaluation.json --baseline-eval-json examples/demo_evaluation_baseline.json
+ragdx dashboard
+```
+
+## Run store
+
+Saved runs are stored under `.ragdx/runs`.
+
+## Notes
+
+This package includes runnable diagnosis and planning logic. Live execution against Ragas, RAGChecker, DSPy, and AutoRAG still depends on the versions and runtime you install locally.

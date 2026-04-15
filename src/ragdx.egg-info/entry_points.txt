@@ -1,0 +1,4 @@
+[console_scripts]
+ragdx = ragdx.cli:app
+ragdx-dashboard = ragdx.ui.dashboard:main
+ragdx-demo = ragdx.demo:main

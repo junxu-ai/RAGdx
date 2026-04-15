@@ -1,0 +1,24 @@
+{
+  "retrieval": {
+    "context_precision": 0.63,
+    "context_recall": 0.57,
+    "context_entities_recall": 0.54,
+    "hit_rate_at_k": 0.64
+  },
+  "generation": {
+    "faithfulness": 0.79,
+    "response_relevancy": 0.82,
+    "noise_sensitivity": 0.31,
+    "context_utilization": 0.61,
+    "hallucination": 0.19
+  },
+  "e2e": {
+    "answer_correctness": 0.68,
+    "citation_accuracy": 0.71,
+    "user_success_rate": 0.69
+  },
+  "metadata": {
+    "dataset": "demo",
+    "notes": "retrieval recall and generator grounding are both weak"
+  }
+}
