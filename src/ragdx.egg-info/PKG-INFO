@@ -1,34 +1,39 @@
 Metadata-Version: 2.4
 Name: ragdx
-Version: 0.3.0
+Version: 0.3.1
 Summary: RAG evaluation, diagnosis, and optimization workbench integrating Ragas, RAGChecker, DSPy, and AutoRAG
 Author: OpenAI
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Operating System :: OS Independent
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
-Requires-Dist: pydantic>=2.7
-Requires-Dist: pandas>=2.2
-Requires-Dist: numpy>=1.26
-Requires-Dist: pyyaml>=6.0
-Requires-Dist: plotly>=5.22
-Requires-Dist: streamlit>=1.35
-Requires-Dist: typer>=0.12
-Requires-Dist: rich>=13.7
+Requires-Dist: pydantic<3,>=2.7
+Requires-Dist: pandas<3,>=2.2
+Requires-Dist: numpy<3,>=1.26
+Requires-Dist: pyyaml<7,>=6.0
+Requires-Dist: plotly<7,>=5.22
+Requires-Dist: streamlit<2,>=1.35
+Requires-Dist: typer<1,>=0.12
+Requires-Dist: rich<15,>=13.7
 Provides-Extra: ragas
-Requires-Dist: ragas>=0.3; extra == "ragas"
+Requires-Dist: ragas<0.4,>=0.3; extra == "ragas"
 Provides-Extra: ragchecker
-Requires-Dist: ragchecker>=0.1; extra == "ragchecker"
+Requires-Dist: ragchecker<0.2,>=0.1; extra == "ragchecker"
 Provides-Extra: dspy
-Requires-Dist: dspy>=2.6; extra == "dspy"
+Requires-Dist: dspy<4,>=2.5.6; extra == "dspy"
 Provides-Extra: autorag
-Requires-Dist: AutoRAG>=0.3; extra == "autorag"
+Requires-Dist: AutoRAG<0.4,>=0.3; extra == "autorag"
 Provides-Extra: openai
-Requires-Dist: openai>=1.30; extra == "openai"
+Requires-Dist: openai<2,>=1.30; extra == "openai"
 Provides-Extra: all
-Requires-Dist: ragas>=0.3; extra == "all"
-Requires-Dist: ragchecker>=0.1; extra == "all"
-Requires-Dist: dspy>=2.6; extra == "all"
-Requires-Dist: AutoRAG>=0.3; extra == "all"
-Requires-Dist: openai>=1.30; extra == "all"
+Requires-Dist: ragas<0.4,>=0.3; extra == "all"
+Requires-Dist: ragchecker<0.2,>=0.1; extra == "all"
+Requires-Dist: dspy<4,>=2.5.6; extra == "all"
+Requires-Dist: AutoRAG<0.4,>=0.3; extra == "all"
+Requires-Dist: openai<2,>=1.30; extra == "all"
 
 # ragdx v3
 

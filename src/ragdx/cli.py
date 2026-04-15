@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -12,6 +13,7 @@ from rich.table import Table
 from ragdx.core.compare import compare_results
 from ragdx.core.diagnosis import RAGDiagnosisEngine
 from ragdx.core.evaluator import UnifiedEvaluator
+from ragdx.engines.llm_diagnosis import LLMDiagnosisExplainer
 from ragdx.optim.planner import OptimizationPlanner
 from ragdx.schemas.models import EvaluationResult
 from ragdx.storage.run_store import RunStore
@@ -24,10 +26,44 @@ def _load_eval(path: str | Path) -> EvaluationResult:
         return EvaluationResult(**json.load(f))
 
 
+def _build_engine(use_llm: bool = False, use_both: bool = False) -> RAGDiagnosisEngine:
+    if not use_llm and not use_both:
+        return RAGDiagnosisEngine()
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise typer.BadParameter(
+            "LLM diagnosis requires the openai extra. Install with: pip install -e '.[openai]'"
+        ) from exc
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise typer.BadParameter("OPENAI_API_KEY is required when using --use-llm or --use-both.")
+
+    model = os.environ.get("RAGDX_OPENAI_MODEL", "gpt-5-mini")
+    client = OpenAI(api_key=api_key)
+
+    def llm_callable(prompt: str) -> str:
+        response = client.responses.create(model=model, input=prompt)
+        return response.output_text
+
+    return RAGDiagnosisEngine(llm_explainer=LLMDiagnosisExplainer(llm_callable=llm_callable))
+
+
 @app.command()
-def diagnose(eval_json: str, save: bool = False, name: str = "", baseline_run_id: str = ""):
+def diagnose(
+    eval_json: str,
+    save: bool = False,
+    name: str = "",
+    baseline_run_id: str = "",
+    use_llm: bool = typer.Option(False, help="Use LLM diagnosis instead of rule-based diagnosis."),
+    use_both: bool = typer.Option(False, help="Run rule-based diagnosis, run LLM diagnosis, then summarize both with the LLM."),
+):
+    if use_llm and use_both:
+        raise typer.BadParameter("Use either --use-llm or --use-both, not both.")
     result = _load_eval(eval_json)
-    report = RAGDiagnosisEngine().diagnose(result)
+    engine = _build_engine(use_llm=use_llm, use_both=use_both)
+    report = engine.diagnose(result, use_llm=use_llm, use_both=use_both)
     plan = OptimizationPlanner().build_plan(report)
     if save:
         run = RunStore().save_run(result, report, plan, name=name or None, baseline_run_id=baseline_run_id or None)
@@ -60,9 +96,20 @@ def compare(current_eval_json: str, baseline_eval_json: str):
 
 
 @app.command()
-def save(eval_json: str, name: str = "", tags: str = "", notes: str = "", baseline_run_id: str = ""):
+def save(
+    eval_json: str,
+    name: str = "",
+    tags: str = "",
+    notes: str = "",
+    baseline_run_id: str = "",
+    use_llm: bool = typer.Option(False, help="Use LLM diagnosis instead of rule-based diagnosis."),
+    use_both: bool = typer.Option(False, help="Run rule-based diagnosis, run LLM diagnosis, then summarize both with the LLM."),
+):
+    if use_llm and use_both:
+        raise typer.BadParameter("Use either --use-llm or --use-both, not both.")
     result = _load_eval(eval_json)
-    report = RAGDiagnosisEngine().diagnose(result)
+    engine = _build_engine(use_llm=use_llm, use_both=use_both)
+    report = engine.diagnose(result, use_llm=use_llm, use_both=use_both)
     plan = OptimizationPlanner().build_plan(report)
     run = RunStore().save_run(
         result,

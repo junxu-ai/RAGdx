@@ -999,7 +999,16 @@ High-value next steps would be:
 
 ## 24. License and authorship
 
-MIT License
+The package metadata currently lists:
+
+- author: `OpenAI`
+
+If you plan to publish the library externally, add:
+
+- a proper open-source license file
+- maintainer information
+- contribution guidelines
+- versioning policy
 
 ---
 
@@ -1015,3 +1024,64 @@ Before using `ragdx` in a serious RAG improvement workflow, confirm that you hav
 - a reproducible runtime for DSPy and AutoRAG if you intend to execute the plans
 
 Once those are in place, `ragdx` becomes a useful engineering layer for structured diagnosis and iterative improvement.
+
+
+## LLM diagnosis
+
+`ragdx` now supports three diagnosis modes from the CLI:
+
+- default: rule-based diagnosis
+- `--use-llm`: run the LLM diagnosis path using the rule-based report as structured input
+- `--use-both`: run rule-based diagnosis, run LLM diagnosis, then summarize both reports with the LLM into one final report
+
+Install the OpenAI extra first:
+
+```bash
+pip install -e ".[openai]"
+```
+
+Set the API key and optional model name:
+
+```bash
+export OPENAI_API_KEY=your_key
+export RAGDX_OPENAI_MODEL=gpt-5.4-thinking
+```
+
+Examples:
+
+```bash
+ragdx diagnose examples/demo_evaluation.json
+ragdx diagnose examples/demo_evaluation.json --use-llm
+ragdx diagnose examples/demo_evaluation.json --use-both
+ragdx save examples/demo_evaluation.json --name demo-llm --use-both
+```
+
+### Diagnosis flow
+
+With `--use-llm`, the package:
+
+1. runs deterministic rule-based diagnosis internally
+2. packages thresholds, metrics, metadata, and the rule-based report into a structured prompt
+3. asks the LLM to return a strict JSON `DiagnosisReport`
+
+With `--use-both`, the package:
+
+1. runs deterministic rule-based diagnosis
+2. runs the LLM refinement pass
+3. asks the LLM to synthesize the rule-based and LLM reports into one final diagnosis report
+
+### Prompt design
+
+The LLM prompt was refined to:
+
+- separate retrieval, ranking/noise, grounding, citation, and pipeline failures
+- prefer causal explanations over surface restatement
+- remain conservative when the metrics do not support a strong claim
+- return strict JSON only
+- order actions by likely execution priority
+
+### Environment notes
+
+- `OPENAI_API_KEY` is required for `--use-llm` and `--use-both`
+- `RAGDX_OPENAI_MODEL` is optional and defaults to `gpt-5.4-thinking`
+- if you do not install the `openai` extra, rule-based diagnosis still works normally
