@@ -999,16 +999,7 @@ High-value next steps would be:
 
 ## 24. License and authorship
 
-The package metadata currently lists:
-
-- author: `OpenAI`
-
-If you plan to publish the library externally, add:
-
-- a proper open-source license file
-- maintainer information
-- contribution guidelines
-- versioning policy
+MIT License
 
 ---
 
