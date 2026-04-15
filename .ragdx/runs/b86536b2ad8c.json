@@ -1,0 +1,196 @@
+{
+  "run_id": "b86536b2ad8c",
+  "created_at": "2026-04-15T13:28:33.398901+00:00",
+  "name": "x",
+  "tags": [],
+  "notes": "",
+  "baseline_run_id": null,
+  "evaluation": {
+    "retrieval": {
+      "context_precision": 0.63,
+      "context_recall": 0.57,
+      "context_entities_recall": 0.54,
+      "hit_rate_at_k": 0.64
+    },
+    "generation": {
+      "faithfulness": 0.79,
+      "response_relevancy": 0.82,
+      "noise_sensitivity": 0.31,
+      "context_utilization": 0.61,
+      "hallucination": 0.19
+    },
+    "e2e": {
+      "answer_correctness": 0.68,
+      "citation_accuracy": 0.71,
+      "user_success_rate": 0.69
+    },
+    "metadata": {
+      "dataset": "demo",
+      "notes": "retrieval recall and generator grounding are both weak"
+    },
+    "raw_tool_outputs": {}
+  },
+  "diagnosis": {
+    "summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+    "expected_thresholds": {
+      "context_precision": 0.8,
+      "context_recall": 0.8,
+      "context_entities_recall": 0.75,
+      "hit_rate_at_k": 0.85,
+      "faithfulness": 0.9,
+      "response_relevancy": 0.85,
+      "context_utilization": 0.75,
+      "noise_sensitivity": 0.2,
+      "hallucination": 0.1,
+      "answer_correctness": 0.85,
+      "answer_accuracy": 0.85,
+      "citation_accuracy": 0.85,
+      "user_success_rate": 0.85
+    },
+    "metric_gaps": {
+      "context_recall": 0.23,
+      "context_entities_recall": 0.21,
+      "hit_rate_at_k": 0.21,
+      "context_precision": 0.17,
+      "answer_correctness": 0.17,
+      "user_success_rate": 0.16,
+      "context_utilization": 0.14,
+      "citation_accuracy": 0.14,
+      "faithfulness": 0.11,
+      "noise_sensitivity": 0.11,
+      "hallucination": 0.09,
+      "response_relevancy": 0.03
+    },
+    "hypotheses": [
+      {
+        "component": "retrieval",
+        "root_cause": "retrieval noise or weak ranking quality",
+        "severity": "high",
+        "confidence": 0.84,
+        "evidence": [
+          "context_precision=0.63 is below target 0.80",
+          "Noisy contexts usually propagate to hallucination and citation failures."
+        ],
+        "recommended_actions": [
+          "Add or tune reranker.",
+          "Reduce top-k or separate recall stage from final evidence stage.",
+          "Use metadata or section-aware filters."
+        ]
+      },
+      {
+        "component": "generation",
+        "root_cause": "answer is fragile under distractors or unsupported reasoning",
+        "severity": "high",
+        "confidence": 0.81,
+        "evidence": [
+          "noise_sensitivity=0.31",
+          "hallucination=0.19",
+          "The generator likely overweights spurious or weakly relevant text."
+        ],
+        "recommended_actions": [
+          "Constrain the answer to quoted or cited evidence.",
+          "Use context packing with stronger ordering and section labels.",
+          "Add a verifier or claim-level grounding pass."
+        ]
+      },
+      {
+        "component": "e2e",
+        "root_cause": "citation mapping is weaker than answer generation",
+        "severity": "medium",
+        "confidence": 0.72,
+        "evidence": [
+          "citation_accuracy=0.71 is below target 0.85"
+        ],
+        "recommended_actions": [
+          "Enforce sentence-level citation formatting.",
+          "Return passage ids with the answer synthesis step."
+        ]
+      }
+    ],
+    "optimization_candidates": [
+      "autorag_pipeline_search",
+      "dspy_prompt_optimization",
+      "joint_ablation_eval"
+    ],
+    "priority_actions": [
+      "Improve ranking precision and evidence filtering.",
+      "Run ablations to separate noisy retrieval from generator overreach.",
+      "Add explicit citation scaffolding in the generation prompt or response schema."
+    ]
+  },
+  "optimization_plan": {
+    "objective_metric": "answer_correctness",
+    "experiments": [
+      {
+        "name": "retrieval-pipeline-search",
+        "tool": "autorag",
+        "target_component": "retrieval",
+        "description": "Search chunking, retriever, reranker, context packing, and top-k settings.",
+        "parameters": {
+          "search_space": [
+            "chunk_size",
+            "overlap",
+            "retriever",
+            "reranker",
+            "context_packing",
+            "top_k"
+          ],
+          "objective": [
+            "context_recall",
+            "context_precision",
+            "answer_correctness"
+          ],
+          "priority": 1
+        },
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": ""
+      },
+      {
+        "name": "generator-prompt-optimization",
+        "tool": "dspy",
+        "target_component": "generation",
+        "description": "Optimize answer synthesis, decomposition, and citation behavior with DSPy.",
+        "parameters": {
+          "optimizer_candidates": [
+            "MIPROv2",
+            "BootstrapRS",
+            "GEPA"
+          ],
+          "target_metrics": [
+            "faithfulness",
+            "response_relevancy",
+            "answer_correctness",
+            "citation_accuracy"
+          ],
+          "priority": 2
+        },
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": ""
+      },
+      {
+        "name": "joint-ablation",
+        "tool": "manual",
+        "target_component": "pipeline",
+        "description": "Run controlled ablations to separate retrieval, reranking, prompt, and citation-template effects.",
+        "parameters": {
+          "ablations": [
+            "retrieval_only",
+            "retrieval_plus_reranker",
+            "prompt_only",
+            "citation_prompt_only",
+            "joint"
+          ],
+          "priority": 3
+        },
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": ""
+      }
+    ]
+  }
+}
