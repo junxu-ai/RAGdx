@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Tuple
 
 from ragdx.schemas.models import DiagnosisReport, EvaluationResult, OptimizationExperiment, OptimizationPlan, SearchStrategy
 
@@ -125,6 +125,75 @@ class OptimizationPlanner:
             else:
                 constraints[key] = round(min(target + 0.015, current + 0.01), 4)
         return constraints
+
+
+
+    def _component_for_stage(self, stage: str, target_component: str) -> str:
+        return {"corpus": "retrieval", "retrieval": "retrieval", "generation": "generation", "orchestration": "pipeline", "joint": "pipeline"}.get(stage, target_component)
+
+    def _metric_direction(self, metric: str) -> str:
+        if metric in MAXIMIZE_METRICS:
+            return "maximize"
+        if metric in MINIMIZE_METRICS:
+            return "minimize"
+        return "monitor"
+
+    def _baseline_metrics_for_component(self, component: str, objective_metric: str, result: EvaluationResult | None) -> Dict[str, float | None]:
+        return {metric: (result.score(metric) if result else None) for metric in self._component_metrics(component, objective_metric)}
+
+    def _target_semantics(self, metric: str, current: float | None, target: float) -> Dict[str, Any]:
+        direction = self._metric_direction(metric)
+        if direction == "maximize":
+            if current is None:
+                mode = "target"
+                regression_cap = None
+            elif target > current + 1e-9:
+                mode = "improve"
+                regression_cap = round(max(0.0, current - 0.01), 4)
+            else:
+                mode = "maintain"
+                regression_cap = round(max(0.0, current - 0.01), 4)
+            out = {"direction": direction, "mode": mode, "target_value": target}
+            if current is not None:
+                out["baseline_value"] = round(current, 4)
+                out["delta_from_baseline"] = round(target - current, 4)
+            if regression_cap is not None:
+                out["min_acceptable"] = regression_cap
+            return out
+        # minimize
+        if current is None:
+            mode = "target"
+            cap = None
+        elif target < current - 1e-9:
+            mode = "reduce"
+            cap = round(current * 1.05, 4) if metric in {"latency_ms", "cost_usd"} else round(current + 0.01, 4)
+        else:
+            mode = "maintain"
+            cap = round(current * 1.05, 4) if metric in {"latency_ms", "cost_usd"} else round(current + 0.01, 4)
+        out = {"direction": direction, "mode": mode, "target_value": target}
+        if current is not None:
+            out["baseline_value"] = round(current, 4)
+            out["delta_from_baseline"] = round(target - current, 4)
+        if cap is not None:
+            out["max_acceptable"] = cap
+        return out
+
+    def _build_metric_plan(self, component: str, objective_metric: str, result: EvaluationResult | None, report: DiagnosisReport | None) -> Tuple[Dict[str, Any], Dict[str, float | None], Dict[str, str], Dict[str, float], Dict[str, float]]:
+        baseline_metrics = self._baseline_metrics_for_component(component, objective_metric, result)
+        directions = {metric: self._metric_direction(metric) for metric in baseline_metrics}
+        target_thresholds: Dict[str, float] = {}
+        target_specs: Dict[str, Any] = {}
+        expected = report.expected_thresholds if report else {}
+        for metric, current in baseline_metrics.items():
+            target = self._target_for_metric(metric, current, expected.get(metric))
+            if metric in MAXIMIZE_METRICS and current is not None:
+                target = max(round(current, 4), target)
+            if metric in MINIMIZE_METRICS and current is not None:
+                target = min(round(current, 4), target)
+            target_thresholds[metric] = round(target, 4)
+            target_specs[metric] = self._target_semantics(metric, current, round(target, 4))
+        objective_weights = self._weights_for_component(component, objective_metric, result=result, report=report)
+        return target_specs, baseline_metrics, directions, target_thresholds, objective_weights
 
     def _corpus_space(self) -> Dict[str, List[object]]:
         return {
@@ -294,10 +363,17 @@ class OptimizationPlanner:
             if isinstance(guidance.get("objective_weights"), dict) and guidance["objective_weights"]:
                 total = sum(float(v) for v in guidance["objective_weights"].values() if isinstance(v, (int, float))) or 1.0
                 exp.objectives = {k: round(float(v) / total, 4) for k, v in guidance["objective_weights"].items() if isinstance(v, (int, float))}
+                exp.parameters["objective_weights"] = dict(exp.objectives)
             if isinstance(guidance.get("constraint_overrides"), dict):
                 exp.constraints.update(guidance["constraint_overrides"])
             if isinstance(guidance.get("target_thresholds"), dict):
                 exp.parameters["target_thresholds"] = guidance["target_thresholds"]
+                baseline_metrics = exp.parameters.get("baseline_metrics", {})
+                metric_directions = exp.parameters.get("metric_directions", {})
+                exp.parameters["target_specs"] = {
+                    k: self._target_semantics(k, baseline_metrics.get(k), float(v))
+                    for k, v in guidance["target_thresholds"].items() if isinstance(v, (int, float))
+                }
             if isinstance(guidance.get("search_space_focus"), dict):
                 exp.search_space = self._apply_focus(exp.search_space, guidance["search_space_focus"])
             if isinstance(guidance.get("max_trials"), int) and guidance["max_trials"] > 0:
@@ -333,6 +409,7 @@ class OptimizationPlanner:
         runtime_framework = runtime_framework.lower() if isinstance(runtime_framework, str) else ""
 
         if corpus_needed:
+            target_specs, baseline_metrics, metric_directions, target_thresholds, objective_weights = self._build_metric_plan("retrieval", objective_metric, result, report)
             add_experiment(
                 OptimizationExperiment(
                     name="corpus-chunking-search",
@@ -340,18 +417,29 @@ class OptimizationPlanner:
                     target_component="retrieval",
                     stage="corpus",
                     description="Optimize parsing, structure preservation, and chunking before retrieval tuning.",
-                    parameters={"diagnosis_summary": report.summary, "planner": "ragdx", "target_thresholds": {m: self._target_for_metric(m, result.score(m) if result else None, report.expected_thresholds.get(m)) for m in self._component_metrics("retrieval", objective_metric) if m in MAXIMIZE_METRICS | MINIMIZE_METRICS}},
-                    objectives=self._weights_for_component("retrieval", objective_metric, result=result, report=report),
+                    parameters={
+                        "diagnosis_summary": report.summary,
+                        "planner": "ragdx",
+                        "baseline_metrics": baseline_metrics,
+                        "metric_directions": metric_directions,
+                        "target_thresholds": target_thresholds,
+                        "target_specs": target_specs,
+                        "constraint_bounds": dict(constraints),
+                        "objective_weights": objective_weights,
+                    },
+                    objectives=objective_weights,
                     search_space=self._corpus_space(),
                     search_strategy="pareto_evolutionary" if strategy == "pareto_evolutionary" else strategy,
                     max_trials=max(3, budget // 4),
-                    notes="Trace-aware corpus search is used when chunking or ingestion defects appear likely.",
+                    notes="Trace-aware corpus search is used when chunking or ingestion defects appear likely. Objective weights are trade-off coefficients, not target metric values.",
                     constraints=dict(constraints),
+                    baseline_score=result.score(objective_metric) if result else None,
                 ),
                 "A corpus-stage experiment was added because the diagnosis indicates missing evidence may originate in parsing or chunking.",
             )
 
         if retrieval_needed:
+            target_specs, baseline_metrics, metric_directions, target_thresholds, objective_weights = self._build_metric_plan("retrieval", objective_metric, result, report)
             add_experiment(
                 OptimizationExperiment(
                     name="retrieval-pipeline-search",
@@ -359,19 +447,30 @@ class OptimizationPlanner:
                     target_component="retrieval",
                     stage="retrieval",
                     description="Optimize retrieval, reranking, and context packing for better evidence quality.",
-                    parameters={"diagnosis_summary": report.summary, "planner": "ragdx", "target_thresholds": {m: self._target_for_metric(m, result.score(m) if result else None, report.expected_thresholds.get(m)) for m in self._component_metrics("retrieval", objective_metric)}},
-                    objectives=self._weights_for_component("retrieval", objective_metric, result=result, report=report),
+                    parameters={
+                        "diagnosis_summary": report.summary,
+                        "planner": "ragdx",
+                        "baseline_metrics": baseline_metrics,
+                        "metric_directions": metric_directions,
+                        "target_thresholds": target_thresholds,
+                        "target_specs": target_specs,
+                        "constraint_bounds": dict(constraints),
+                        "objective_weights": objective_weights,
+                    },
+                    objectives=objective_weights,
                     search_space=self._retrieval_space(),
                     search_strategy=strategy,
                     max_trials=max(4, budget // 3),
-                    notes="AutoRAG-style search space generated from retrieval diagnosis.",
+                    notes="AutoRAG-style search space generated from retrieval diagnosis. Objective weights are trade-off coefficients, not target metric values.",
                     constraints=dict(constraints),
                     depends_on=["corpus-chunking-search"] if corpus_needed else [],
+                    baseline_score=result.score(objective_metric) if result else None,
                 ),
                 "A retrieval-stage search was selected because the diagnosis indicates evidence miss or ranking noise.",
             )
 
         if generation_needed:
+            target_specs, baseline_metrics, metric_directions, target_thresholds, objective_weights = self._build_metric_plan("generation", objective_metric, result, report)
             add_experiment(
                 OptimizationExperiment(
                     name="generator-prompt-optimization",
@@ -379,19 +478,30 @@ class OptimizationPlanner:
                     target_component="generation",
                     stage="generation",
                     description="Optimize grounded answer synthesis, citation behavior, and verification.",
-                    parameters={"diagnosis_summary": report.summary, "planner": "ragdx", "target_thresholds": {m: self._target_for_metric(m, result.score(m) if result else None, report.expected_thresholds.get(m)) for m in self._component_metrics("generation", objective_metric)}},
-                    objectives=self._weights_for_component("generation", objective_metric, result=result, report=report),
+                    parameters={
+                        "diagnosis_summary": report.summary,
+                        "planner": "ragdx",
+                        "baseline_metrics": baseline_metrics,
+                        "metric_directions": metric_directions,
+                        "target_thresholds": target_thresholds,
+                        "target_specs": target_specs,
+                        "constraint_bounds": dict(constraints),
+                        "objective_weights": objective_weights,
+                    },
+                    objectives=objective_weights,
                     search_space=self._generation_space(),
                     search_strategy=strategy,
                     max_trials=max(4, budget // 3),
-                    notes="DSPy optimization surface generated from generation diagnosis.",
+                    notes="DSPy optimization surface generated from generation diagnosis. Objective weights are trade-off coefficients, not target metric values.",
                     constraints=dict(constraints),
                     depends_on=["retrieval-pipeline-search"] if retrieval_needed else [],
+                    baseline_score=result.score(objective_metric) if result else None,
                 ),
                 "A generation-stage optimization was selected because the diagnosis indicates grounding, citation, or response formation issues.",
             )
 
         if orchestration_needed:
+            target_specs, baseline_metrics, metric_directions, target_thresholds, objective_weights = self._build_metric_plan("pipeline", objective_metric, result, report)
             add_experiment(
                 OptimizationExperiment(
                     name="orchestration-policy-search",
@@ -399,19 +509,30 @@ class OptimizationPlanner:
                     target_component="pipeline",
                     stage="orchestration",
                     description="Tune abstention, retry, and planner policies when drift, evaluation instability, or user feedback requires policy-level adaptation.",
-                    parameters={"diagnosis_summary": report.summary, "planner": "ragdx", "target_thresholds": {m: self._target_for_metric(m, result.score(m) if result else None, report.expected_thresholds.get(m)) for m in self._component_metrics("pipeline", objective_metric)}},
-                    objectives=self._weights_for_component("pipeline", objective_metric, result=result, report=report),
+                    parameters={
+                        "diagnosis_summary": report.summary,
+                        "planner": "ragdx",
+                        "baseline_metrics": baseline_metrics,
+                        "metric_directions": metric_directions,
+                        "target_thresholds": target_thresholds,
+                        "target_specs": target_specs,
+                        "constraint_bounds": dict(constraints),
+                        "objective_weights": objective_weights,
+                    },
+                    objectives=objective_weights,
                     search_space=self._orchestration_space(),
                     search_strategy="pareto_evolutionary",
                     max_trials=max(3, budget // 4),
-                    notes="Policy-aware search is added when production feedback or evaluation instability is material.",
+                    notes="Policy-aware search is added when production feedback or evaluation instability is material. Objective weights are trade-off coefficients, not target metric values.",
                     constraints=dict(constraints),
                     depends_on=[e.name for e in experiments if e.stage in {"retrieval", "generation"}],
+                    baseline_score=result.score(objective_metric) if result else None,
                 ),
                 "An orchestration-stage search was added because feedback and trace evidence suggest policy-level adaptation may be needed.",
             )
 
         if "joint_ablation_eval" in candidates or not experiments:
+            target_specs, baseline_metrics, metric_directions, target_thresholds, objective_weights = self._build_metric_plan("pipeline", objective_metric, result, report)
             add_experiment(
                 OptimizationExperiment(
                     name="joint-pipeline-optimization",
@@ -419,20 +540,31 @@ class OptimizationPlanner:
                     target_component="pipeline",
                     stage="joint",
                     description="Run multi-objective search over retrieval/generation operating profiles when component-level root cause is mixed.",
-                    parameters={"diagnosis_summary": report.summary, "planner": "ragdx", "target_thresholds": {m: self._target_for_metric(m, result.score(m) if result else None, report.expected_thresholds.get(m)) for m in self._component_metrics("pipeline", objective_metric)}},
-                    objectives=self._weights_for_component("pipeline", objective_metric, result=result, report=report),
+                    parameters={
+                        "diagnosis_summary": report.summary,
+                        "planner": "ragdx",
+                        "baseline_metrics": baseline_metrics,
+                        "metric_directions": metric_directions,
+                        "target_thresholds": target_thresholds,
+                        "target_specs": target_specs,
+                        "constraint_bounds": dict(constraints),
+                        "objective_weights": objective_weights,
+                    },
+                    objectives=objective_weights,
                     search_space=self._joint_space(),
                     search_strategy="pareto_evolutionary" if strategy == "pareto_evolutionary" else strategy,
                     max_trials=max(4, budget - sum(e.max_trials for e in experiments)),
-                    notes="Joint search is used when the pipeline bottleneck is mixed or inconclusive.",
+                    notes="Joint search is used when the pipeline bottleneck is mixed or inconclusive. Objective weights are trade-off coefficients, not target metric values.",
                     constraints=dict(constraints),
                     depends_on=[e.name for e in experiments],
+                    baseline_score=result.score(objective_metric) if result else None,
                 ),
                 "A joint search was added to resolve mixed retrieval and generation failures with direct end-to-end tradeoff tracking.",
             )
 
         if runtime_framework in {"langchain", "llamaindex"}:
             framework_tool = runtime_framework
+            target_specs, baseline_metrics, metric_directions, target_thresholds, objective_weights = self._build_metric_plan("pipeline", objective_metric, result, report)
             add_experiment(
                 OptimizationExperiment(
                     name=f"{runtime_framework}-stack-validation",
@@ -445,15 +577,21 @@ class OptimizationPlanner:
                         "planner": "ragdx",
                         "dataset_path": result.metadata.get("dataset_path", "examples/demo_dataset.jsonl") if result else "examples/demo_dataset.jsonl",
                         "pipeline_module": result.metadata.get("pipeline_module", f"examples.{runtime_framework}_pipeline:create_pipeline") if result else f"examples.{runtime_framework}_pipeline:create_pipeline",
-                        "target_thresholds": {m: self._target_for_metric(m, result.score(m) if result else None, report.expected_thresholds.get(m)) for m in self._component_metrics("pipeline", objective_metric)},
+                        "baseline_metrics": baseline_metrics,
+                        "metric_directions": metric_directions,
+                        "target_thresholds": target_thresholds,
+                        "target_specs": target_specs,
+                        "constraint_bounds": dict(constraints),
+                        "objective_weights": objective_weights,
                     },
-                    objectives=self._weights_for_component("pipeline", objective_metric, result=result, report=report),
+                    objectives=objective_weights,
                     search_space=self._stack_runtime_space(runtime_framework),
                     search_strategy=strategy,
                     max_trials=max(3, budget // 4),
-                    notes=f"{runtime_framework} runtime validation is added because the evaluation metadata selected that framework.",
+                    notes=f"{runtime_framework} runtime validation is added because the evaluation metadata selected that framework. Objective weights are trade-off coefficients, not target metric values.",
                     constraints=dict(constraints),
                     depends_on=[e.name for e in experiments],
+                    baseline_score=result.score(objective_metric) if result else None,
                 ),
                 f"An executable {runtime_framework} validation experiment was added so candidate configurations can be run directly against the chosen runtime framework.",
             )

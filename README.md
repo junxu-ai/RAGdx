@@ -258,6 +258,18 @@ Every planned experiment can carry hard or soft operational constraints, for exa
 
 This is intended to prevent optimization from improving one metric by degrading risk or operating characteristics too far.
 
+
+## Baseline-relative planning semantics
+
+Generated plans now separate four concepts clearly:
+
+- `parameters.baseline_metrics`: the observed baseline values used for planning
+- `objectives`: trade-off weights used by the optimizer, not target metric values
+- `parameters.target_thresholds`: concrete numeric target region for each metric
+- `parameters.target_specs`: per-metric semantics including direction (`maximize`/`minimize`), mode (`improve`/`maintain`/`reduce`), baseline value, delta from baseline, and acceptable bounds
+
+This avoids the earlier ambiguity where objective weights could be misread as target values. The planner also guards against regressive targets: maximize metrics are no longer set below the current baseline, and minimize metrics are no longer set above the current baseline unless an explicit LLM override or diagnosis requires it.
+
 ## CLI reference
 
 ### Diagnose
