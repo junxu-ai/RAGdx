@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import json_repair
 from typing import Any, Callable, Dict
 
 from ragdx.schemas.models import DiagnosisReport, EvaluationResult
@@ -17,20 +16,19 @@ You will receive:
 3. an initial rule-based diagnosis
 4. metadata about the run
 
-Instructions:
-- Identify the most plausible root causes for underperformance.
-- Distinguish retrieval failures, ranking/noise failures, grounding failures, citation failures, and broader pipeline issues.
-- Prefer causal reasoning over surface descriptions.
-- Do not repeat the input diagnosis mechanically. Improve it where warranted.
-- Keep recommendations concrete and prioritized.
-- Only claim a bottleneck when the metrics support it.
-- Be conservative when evidence is weak.
+Reasoning requirements:
+- Start from the metrics, not from stylistic preference.
+- Distinguish retrieval recall failure, retrieval precision or ranking noise, generator grounding failure, citation failure, and broader pipeline failure.
+- Separate primary bottlenecks from secondary symptoms.
+- Prefer causal reasoning over rephrasing the rule-based diagnosis.
+- Be conservative when evidence is weak or mixed.
+- Convert the analysis into remediation actions in execution order.
 
 Output requirements:
 - Return strict JSON only.
 - Use exactly these top-level keys:
   summary, expected_thresholds, metric_gaps, hypotheses, optimization_candidates, priority_actions
-- summary must be concise but specific.
+- summary must be concise and specific.
 - hypotheses must be a list of objects with keys:
   component, root_cause, severity, confidence, evidence, recommended_actions
 - confidence must be numeric in [0,1].
@@ -56,7 +54,8 @@ Instructions:
 - Prefer the more evidence-backed explanation, not the more verbose one.
 - Avoid duplicate hypotheses.
 - Keep the final report practical for remediation planning.
-- Priority actions should reflect the true execution order. Retrieval fixes should usually precede generator tuning when retrieval is the main bottleneck.
+- Priority actions should reflect the real execution order.
+- Retrieval fixes should usually precede generator tuning when retrieval is the main bottleneck.
 
 Output requirements:
 - Return strict JSON only.
@@ -79,33 +78,6 @@ class LLMDiagnosisExplainer:
         self.summary_prompt_template = summary_prompt_template
 
     @staticmethod
-    def _find_json_end(text: str, start: int) -> int:
-        brace_count = 0
-        in_string = False
-        escape = False
-        i = start
-        while i < len(text):
-            c = text[i]
-            if in_string:
-                if escape:
-                    escape = False
-                elif c == '\\':
-                    escape = True
-                elif c == '"':
-                    in_string = False
-            else:
-                if c == '"':
-                    in_string = True
-                elif c == '{':
-                    brace_count += 1
-                elif c == '}':
-                    brace_count -= 1
-                    if brace_count == 0:
-                        return i
-            i += 1
-        return -1
-
-    @staticmethod
     def _coerce_json(raw: str | Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(raw, dict):
             return raw
@@ -114,21 +86,10 @@ class LLMDiagnosisExplainer:
             return json.loads(text)
         except json.JSONDecodeError:
             start = text.find("{")
-            if start == -1:
-                raise
-            end = LLMDiagnosisEngine._find_json_end(text, start)
-            if end == -1:
-                # Fallback to old method
-                end = text.rfind("}")
-                if end == -1 or end <= start:
-                    raise
-            try:
-                return json.loads(text[start:end+1])
-            except json.JSONDecodeError:
-                try:
-                    return json_repair.loads(text[start:end+1])
-                except Exception:
-                    raise
+            end = text.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                return json.loads(text[start : end + 1])
+            raise
 
     def explain(self, result: EvaluationResult, base_report: DiagnosisReport) -> DiagnosisReport:
         payload = {
@@ -141,7 +102,7 @@ class LLMDiagnosisExplainer:
             "initial_diagnosis": base_report.model_dump(),
             "metadata": result.metadata,
         }
-        prompt = self.prompt_template + "INPUT:" + json.dumps(payload, indent=2)
+        prompt = f"{self.prompt_template}\n\nINPUT:\n{json.dumps(payload, indent=2)}"
         data = self._coerce_json(self.llm_callable(prompt))
         return DiagnosisReport(**data)
 
@@ -161,6 +122,6 @@ class LLMDiagnosisExplainer:
             "rule_based_diagnosis": rule_report.model_dump(),
             "llm_diagnosis": llm_report.model_dump(),
         }
-        prompt = self.summary_prompt_template + "INPUT:" + json.dumps(payload, indent=2)
+        prompt = f"{self.summary_prompt_template}\n\nINPUT:\n{json.dumps(payload, indent=2)}"
         data = self._coerce_json(self.llm_callable(prompt))
         return DiagnosisReport(**data)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
@@ -10,7 +9,7 @@ import streamlit as st
 from ragdx.core.compare import compare_results
 from ragdx.core.diagnosis import RAGDiagnosisEngine
 from ragdx.optim.planner import OptimizationPlanner
-from ragdx.schemas.models import EvaluationResult
+from ragdx.schemas.models import EvaluationResult, OptimizationSession
 from ragdx.storage.run_store import RunStore
 
 
@@ -30,6 +29,25 @@ def _flatten(result: EvaluationResult) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _trials_df(session: OptimizationSession) -> pd.DataFrame:
+    rows = []
+    for t in session.trials:
+        row = {
+            "trial_id": t.trial_id,
+            "experiment": t.experiment_name,
+            "tool": t.tool,
+            "strategy": t.strategy,
+            "status": t.status,
+            "utility": t.utility,
+            "pareto_front": t.pareto_front,
+            "config_path": t.config_path,
+        }
+        row.update({f"metric::{k}": v for k, v in t.objective_scores.items()})
+        row.update({f"param::{k}": v for k, v in t.parameters.items()})
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def load_result(uploaded_file) -> EvaluationResult:
     if uploaded_file is None:
         return DEMO_RESULT
@@ -40,7 +58,7 @@ def load_result(uploaded_file) -> EvaluationResult:
 def main() -> None:
     st.set_page_config(page_title="ragdx dashboard", layout="wide")
     st.title("ragdx: RAG evaluation, diagnosis, and optimization")
-    st.caption("Inspect normalized metrics, compare saved runs, diagnose root causes, and stage optimization experiments.")
+    st.caption("Inspect normalized metrics, diagnose root causes, define optimization plans, and monitor optimization sessions.")
 
     store = RunStore()
     uploaded = st.sidebar.file_uploader("Upload evaluation JSON", type=["json"])
@@ -54,10 +72,10 @@ def main() -> None:
     else:
         result = load_result(uploaded)
         report = RAGDiagnosisEngine().diagnose(result)
-        plan = OptimizationPlanner().build_plan(report)
+        plan = OptimizationPlanner().build_plan(report, result=result)
         current_run = None
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Scores", "Diagnosis", "Optimization", "Compare", "Raw JSON"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Scores", "Diagnosis", "Optimization Plan", "Optimization Sessions", "Compare", "Raw JSON"])
 
     with tab1:
         c1, c2, c3 = st.columns(3)
@@ -72,6 +90,10 @@ def main() -> None:
     with tab2:
         st.subheader("Summary")
         st.write(report.summary)
+        if plan.rationale:
+            st.subheader("Why this plan was selected")
+            for item in plan.rationale:
+                st.write(f"- {item}")
         st.subheader("Metric gaps")
         if report.metric_gaps:
             gap_df = pd.DataFrame([{"metric": k, "gap": v} for k, v in report.metric_gaps.items()])
@@ -98,10 +120,63 @@ def main() -> None:
         if not plan.experiments:
             st.info("No optimization experiment proposed at the current thresholds.")
         else:
-            plan_df = pd.DataFrame([exp.model_dump() for exp in plan.experiments])
-            st.dataframe(plan_df, use_container_width=True)
+            for exp in plan.experiments:
+                with st.expander(f"{exp.name} | {exp.tool} | {exp.search_strategy}", expanded=True):
+                    st.write(exp.description)
+                    st.write("**Objectives**")
+                    st.json(exp.objectives)
+                    st.write("**Search space**")
+                    st.json(exp.search_space)
+                    st.write(f"**Trial budget:** {exp.max_trials}")
 
     with tab4:
+        sessions = store.list_sessions()
+        if not sessions:
+            st.info("No optimization sessions found. Run `ragdx optimize ...` first.")
+        else:
+            options = {f"{s.session_id} | {s.status} | {s.strategy}": s for s in sessions}
+            selected = st.selectbox("Optimization session", list(options.keys()))
+            session = options[selected]
+            progress = session.completed_trials / max(session.total_trials, 1)
+            st.progress(progress)
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Status", session.status)
+            c2.metric("Strategy", session.strategy)
+            c3.metric("Trials", f"{session.completed_trials}/{session.total_trials}")
+            c4.metric("Pareto front", len(session.pareto_front_ids))
+            if session.best_trial_id:
+                st.write(f"**Best trial by scalar utility:** `{session.best_trial_id}`")
+
+            trials_df = _trials_df(session)
+            if not trials_df.empty:
+                st.dataframe(trials_df, use_container_width=True)
+                metric_cols = [c for c in trials_df.columns if c.startswith("metric::")]
+                if metric_cols:
+                    metric_choice = st.selectbox("Metric to plot", metric_cols)
+                    fig = px.line(trials_df.reset_index(), x="index", y=metric_choice, color="experiment", markers=True, title="Objective progression")
+                    st.plotly_chart(fig, use_container_width=True)
+                if "metric::answer_correctness" in trials_df.columns and "metric::citation_accuracy" in trials_df.columns:
+                    fig2 = px.scatter(
+                        trials_df,
+                        x="metric::answer_correctness",
+                        y="metric::citation_accuracy",
+                        color="pareto_front",
+                        symbol="experiment",
+                        hover_data=["trial_id", "utility"],
+                        title="Pareto view: answer_correctness vs citation_accuracy",
+                    )
+                    st.plotly_chart(fig2, use_container_width=True)
+                pareto_df = trials_df[trials_df["pareto_front"] == True]
+                if not pareto_df.empty:
+                    st.subheader("Pareto-front trials")
+                    st.dataframe(pareto_df, use_container_width=True)
+                selected_trial = st.selectbox("Inspect config", trials_df["trial_id"].tolist())
+                row = trials_df[trials_df["trial_id"] == selected_trial].iloc[0]
+                config_path = row.get("config_path")
+                if isinstance(config_path, str) and config_path:
+                    st.code(open(config_path, "r", encoding="utf-8").read(), language="yaml")
+
+    with tab5:
         saved_runs = store.list_runs()
         if len(saved_runs) < 2 and current_run is None:
             st.info("Save two runs first, or use the CLI compare command for ad hoc comparison.")
@@ -115,7 +190,7 @@ def main() -> None:
                 cmp_df = pd.DataFrame([c.model_dump() for c in compare_results(current.evaluation, baseline.evaluation)])
                 st.dataframe(cmp_df, use_container_width=True)
 
-    with tab5:
+    with tab6:
         st.code(result.model_dump_json(indent=2), language="json")
 
 

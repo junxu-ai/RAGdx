@@ -1,0 +1,695 @@
+{
+  "session_id": "edd46fa43881",
+  "created_at": "2026-04-16T05:56:27.095000+00:00",
+  "run_id": "c97dd57c3950",
+  "strategy": "bayesian",
+  "mode": "simulate",
+  "status": "completed",
+  "plan": {
+    "objective_metric": "answer_correctness",
+    "experiments": [
+      {
+        "name": "retrieval-pipeline-search",
+        "tool": "autorag",
+        "target_component": "retrieval",
+        "description": "Optimize retrieval, reranking, and context packing for better evidence quality.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "context_recall": 0.35,
+          "context_precision": 0.25,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.15
+        },
+        "search_space": {
+          "chunk_size": [
+            256,
+            384,
+            512,
+            768,
+            1024
+          ],
+          "chunk_overlap": [
+            32,
+            64,
+            96,
+            128
+          ],
+          "retriever": [
+            "bm25",
+            "vector",
+            "hybrid"
+          ],
+          "reranker": [
+            "none",
+            "bge-reranker",
+            "cross-encoder"
+          ],
+          "top_k": [
+            4,
+            6,
+            8,
+            10
+          ],
+          "context_ordering": [
+            "retrieval_score",
+            "section_then_score",
+            "diverse_then_score"
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 6,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "AutoRAG-style search space generated from retrieval diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "generator-prompt-optimization",
+        "tool": "dspy",
+        "target_component": "generation",
+        "description": "Optimize grounded answer synthesis and citation behavior.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "faithfulness": 0.35,
+          "response_relevancy": 0.2,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.2
+        },
+        "search_space": {
+          "optimizer": [
+            "MIPROv2",
+            "BootstrapFewShot",
+            "GEPA"
+          ],
+          "fewshot_count": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "prompt_style": [
+            "grounded_qa",
+            "claim_then_evidence",
+            "citation_first"
+          ],
+          "temperature": [
+            0.0,
+            0.2,
+            0.4
+          ],
+          "max_citations": [
+            1,
+            2,
+            3
+          ],
+          "decomposition": [
+            false,
+            true
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 6,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "DSPy optimization surface generated from generation diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "joint-pipeline-optimization",
+        "tool": "manual",
+        "target_component": "pipeline",
+        "description": "Run multi-objective search over retrieval/generation operating profiles when component-level root cause is mixed.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "answer_correctness": 0.45,
+          "citation_accuracy": 0.2,
+          "faithfulness": 0.2,
+          "context_recall": 0.15
+        },
+        "search_space": {
+          "retrieval_profile": [
+            "recall_heavy",
+            "balanced",
+            "precision_heavy"
+          ],
+          "generator_profile": [
+            "grounded_qa",
+            "citation_first"
+          ],
+          "verifier": [
+            "none",
+            "claim_checker"
+          ],
+          "context_budget": [
+            3000,
+            4500,
+            6000
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "Joint search is used when the pipeline bottleneck is mixed or inconclusive.",
+        "config_artifacts": []
+      }
+    ],
+    "rationale": [
+      "Retrieval-focused search was selected because the diagnosis indicates evidence miss or ranking noise.",
+      "Generator-side optimization was selected because the diagnosis indicates grounding, citation, or response formation issues.",
+      "A joint search was added to resolve mixed retrieval and generation failures with direct end-to-end tradeoff tracking."
+    ]
+  },
+  "total_trials": 16,
+  "completed_trials": 16,
+  "current_experiment": null,
+  "trials": [
+    {
+      "trial_id": "81ac61398d",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 512,
+        "chunk_overlap": 128,
+        "retriever": "vector",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\81ac61398d_autorag.yaml",
+      "objective_scores": {
+        "context_recall": 0.6167,
+        "context_precision": 0.6667,
+        "answer_correctness": 0.7267,
+        "citation_accuracy": 0.7467
+      },
+      "utility": 0.6762,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\81ac61398d_autorag.yaml",
+        "Simulated objective scores: {'context_recall': 0.6167, 'context_precision': 0.6667, 'answer_correctness': 0.7267, 'citation_accuracy': 0.7467}"
+      ],
+      "started_at": "2026-04-16T05:56:27.110897+00:00",
+      "completed_at": "2026-04-16T05:56:27.110897+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "04c944927d",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 384,
+        "chunk_overlap": 96,
+        "retriever": "vector",
+        "reranker": "cross-encoder",
+        "top_k": 4,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\04c944927d_autorag.yaml",
+      "objective_scores": {
+        "context_recall": 0.5955,
+        "context_precision": 0.6655,
+        "answer_correctness": 0.7055,
+        "citation_accuracy": 0.7455
+      },
+      "utility": 0.663,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\04c944927d_autorag.yaml",
+        "Simulated objective scores: {'context_recall': 0.5955, 'context_precision': 0.6655, 'answer_correctness': 0.7055, 'citation_accuracy': 0.7455}"
+      ],
+      "started_at": "2026-04-16T05:56:27.110897+00:00",
+      "completed_at": "2026-04-16T05:56:27.110897+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "26a234d4f3",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "retriever": "hybrid",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\26a234d4f3_autorag.yaml",
+      "objective_scores": {
+        "context_recall": 0.614,
+        "context_precision": 0.664,
+        "answer_correctness": 0.724,
+        "citation_accuracy": 0.744
+      },
+      "utility": 0.6735,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\26a234d4f3_autorag.yaml",
+        "Simulated objective scores: {'context_recall': 0.614, 'context_precision': 0.664, 'answer_correctness': 0.724, 'citation_accuracy': 0.744}"
+      ],
+      "started_at": "2026-04-16T05:56:27.110897+00:00",
+      "completed_at": "2026-04-16T05:56:27.110897+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "63a12f8265",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 384,
+        "chunk_overlap": 128,
+        "retriever": "vector",
+        "reranker": "bge-reranker",
+        "top_k": 10,
+        "context_ordering": "retrieval_score"
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\63a12f8265_autorag.yaml",
+      "objective_scores": {
+        "context_recall": 0.5858,
+        "context_precision": 0.6458,
+        "answer_correctness": 0.6958,
+        "citation_accuracy": 0.7258
+      },
+      "utility": 0.6493,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\63a12f8265_autorag.yaml",
+        "Simulated objective scores: {'context_recall': 0.5858, 'context_precision': 0.6458, 'answer_correctness': 0.6958, 'citation_accuracy': 0.7258}"
+      ],
+      "started_at": "2026-04-16T05:56:27.110897+00:00",
+      "completed_at": "2026-04-16T05:56:27.110897+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "1f3da7fb50",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "retriever": "bm25",
+        "reranker": "none",
+        "top_k": 4,
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\1f3da7fb50_autorag.yaml",
+      "objective_scores": {
+        "context_recall": 0.5737,
+        "context_precision": 0.6337,
+        "answer_correctness": 0.6837,
+        "citation_accuracy": 0.7137
+      },
+      "utility": 0.6372,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\1f3da7fb50_autorag.yaml",
+        "Simulated objective scores: {'context_recall': 0.5737, 'context_precision': 0.6337, 'answer_correctness': 0.6837, 'citation_accuracy': 0.7137}"
+      ],
+      "started_at": "2026-04-16T05:56:27.110897+00:00",
+      "completed_at": "2026-04-16T05:56:27.110897+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "a1096551e4",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 1024,
+        "chunk_overlap": 96,
+        "retriever": "hybrid",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\a1096551e4_autorag.yaml",
+      "objective_scores": {
+        "context_recall": 0.609,
+        "context_precision": 0.659,
+        "answer_correctness": 0.719,
+        "citation_accuracy": 0.739
+      },
+      "utility": 0.6685,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\a1096551e4_autorag.yaml",
+        "Simulated objective scores: {'context_recall': 0.609, 'context_precision': 0.659, 'answer_correctness': 0.719, 'citation_accuracy': 0.739}"
+      ],
+      "started_at": "2026-04-16T05:56:27.110897+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "9b49cb74df",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 2,
+        "decomposition": true
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\9b49cb74df_dspy.yaml",
+      "objective_scores": {
+        "faithfulness": 0.8264,
+        "response_relevancy": 0.8264,
+        "answer_correctness": 0.7164,
+        "citation_accuracy": 0.7464
+      },
+      "utility": 0.7829,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\9b49cb74df_dspy.yaml",
+        "Simulated objective scores: {'faithfulness': 0.8264, 'response_relevancy': 0.8264, 'answer_correctness': 0.7164, 'citation_accuracy': 0.7464}"
+      ],
+      "started_at": "2026-04-16T05:56:27.127401+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "e719425e3f",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 6,
+        "prompt_style": "claim_then_evidence",
+        "temperature": 0.2,
+        "max_citations": 2,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\e719425e3f_dspy.yaml",
+      "objective_scores": {
+        "faithfulness": 0.8453,
+        "response_relevancy": 0.8353,
+        "answer_correctness": 0.7353,
+        "citation_accuracy": 0.7653
+      },
+      "utility": 0.7998,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\e719425e3f_dspy.yaml",
+        "Simulated objective scores: {'faithfulness': 0.8453, 'response_relevancy': 0.8353, 'answer_correctness': 0.7353, 'citation_accuracy': 0.7653}"
+      ],
+      "started_at": "2026-04-16T05:56:27.127401+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "4294b21dfe",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 4,
+        "prompt_style": "citation_first",
+        "temperature": 0.0,
+        "max_citations": 3,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\4294b21dfe_dspy.yaml",
+      "objective_scores": {
+        "faithfulness": 0.8344,
+        "response_relevancy": 0.8394,
+        "answer_correctness": 0.7244,
+        "citation_accuracy": 0.7544
+      },
+      "utility": 0.7919,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\4294b21dfe_dspy.yaml",
+        "Simulated objective scores: {'faithfulness': 0.8344, 'response_relevancy': 0.8394, 'answer_correctness': 0.7244, 'citation_accuracy': 0.7544}"
+      ],
+      "started_at": "2026-04-16T05:56:27.127401+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "1b2690d6d8",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 4,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 1,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\1b2690d6d8_dspy.yaml",
+      "objective_scores": {
+        "faithfulness": 0.7999,
+        "response_relevancy": 0.8399,
+        "answer_correctness": 0.6899,
+        "citation_accuracy": 0.7199
+      },
+      "utility": 0.7644,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\1b2690d6d8_dspy.yaml",
+        "Simulated objective scores: {'faithfulness': 0.7999, 'response_relevancy': 0.8399, 'answer_correctness': 0.6899, 'citation_accuracy': 0.7199}"
+      ],
+      "started_at": "2026-04-16T05:56:27.127401+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "8bbe43be0c",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.2,
+        "max_citations": 3,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\8bbe43be0c_dspy.yaml",
+      "objective_scores": {
+        "faithfulness": 0.809,
+        "response_relevancy": 0.834,
+        "answer_correctness": 0.699,
+        "citation_accuracy": 0.729
+      },
+      "utility": 0.7705,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\8bbe43be0c_dspy.yaml",
+        "Simulated objective scores: {'faithfulness': 0.809, 'response_relevancy': 0.834, 'answer_correctness': 0.699, 'citation_accuracy': 0.729}"
+      ],
+      "started_at": "2026-04-16T05:56:27.127401+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "894f90c39f",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 4,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 2,
+        "decomposition": true
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\894f90c39f_dspy.yaml",
+      "objective_scores": {
+        "faithfulness": 0.8279,
+        "response_relevancy": 0.8429,
+        "answer_correctness": 0.7179,
+        "citation_accuracy": 0.7479
+      },
+      "utility": 0.7874,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\894f90c39f_dspy.yaml",
+        "Simulated objective scores: {'faithfulness': 0.8279, 'response_relevancy': 0.8429, 'answer_correctness': 0.7179, 'citation_accuracy': 0.7479}"
+      ],
+      "started_at": "2026-04-16T05:56:27.127401+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "b24c14be5b",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retrieval_profile": "precision_heavy",
+        "generator_profile": "citation_first",
+        "verifier": "none",
+        "context_budget": 4500
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\b24c14be5b_manual.yaml",
+      "objective_scores": {
+        "answer_correctness": 0.6893,
+        "citation_accuracy": 0.7343,
+        "faithfulness": 0.8143,
+        "context_recall": 0.5943
+      },
+      "utility": 0.7091,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\b24c14be5b_manual.yaml",
+        "Simulated objective scores: {'answer_correctness': 0.6893, 'citation_accuracy': 0.7343, 'faithfulness': 0.8143, 'context_recall': 0.5943}"
+      ],
+      "started_at": "2026-04-16T05:56:27.127401+00:00",
+      "completed_at": "2026-04-16T05:56:27.127401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "8bec332dbc",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retrieval_profile": "balanced",
+        "generator_profile": "citation_first",
+        "verifier": "claim_checker",
+        "context_budget": 6000
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\8bec332dbc_manual.yaml",
+      "objective_scores": {
+        "answer_correctness": 0.7097,
+        "citation_accuracy": 0.7197,
+        "faithfulness": 0.7997,
+        "context_recall": 0.5797
+      },
+      "utility": 0.7102,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\8bec332dbc_manual.yaml",
+        "Simulated objective scores: {'answer_correctness': 0.7097, 'citation_accuracy': 0.7197, 'faithfulness': 0.7997, 'context_recall': 0.5797}"
+      ],
+      "started_at": "2026-04-16T05:56:27.142622+00:00",
+      "completed_at": "2026-04-16T05:56:27.142622+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "1e63468d92",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retrieval_profile": "precision_heavy",
+        "generator_profile": "grounded_qa",
+        "verifier": "none",
+        "context_budget": 3000
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\1e63468d92_manual.yaml",
+      "objective_scores": {
+        "answer_correctness": 0.6849,
+        "citation_accuracy": 0.7199,
+        "faithfulness": 0.7999,
+        "context_recall": 0.5799
+      },
+      "utility": 0.6992,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\1e63468d92_manual.yaml",
+        "Simulated objective scores: {'answer_correctness': 0.6849, 'citation_accuracy': 0.7199, 'faithfulness': 0.7999, 'context_recall': 0.5799}"
+      ],
+      "started_at": "2026-04-16T05:56:27.142622+00:00",
+      "completed_at": "2026-04-16T05:56:27.142622+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "794d9db8a6",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retrieval_profile": "balanced",
+        "generator_profile": "grounded_qa",
+        "verifier": "none",
+        "context_budget": 3000
+      },
+      "config_path": ".ragdx\\optimization\\edd46fa43881\\configs\\794d9db8a6_manual.yaml",
+      "objective_scores": {
+        "answer_correctness": 0.6948,
+        "citation_accuracy": 0.7198,
+        "faithfulness": 0.7998,
+        "context_recall": 0.5798
+      },
+      "utility": 0.7036,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\edd46fa43881\\configs\\794d9db8a6_manual.yaml",
+        "Simulated objective scores: {'answer_correctness': 0.6948, 'citation_accuracy': 0.7198, 'faithfulness': 0.7998, 'context_recall': 0.5798}"
+      ],
+      "started_at": "2026-04-16T05:56:27.142622+00:00",
+      "completed_at": "2026-04-16T05:56:27.142622+00:00",
+      "notes": ""
+    }
+  ],
+  "best_trial_id": "e719425e3f",
+  "pareto_front_ids": [
+    "81ac61398d",
+    "e719425e3f",
+    "4294b21dfe",
+    "894f90c39f",
+    "b24c14be5b",
+    "8bec332dbc",
+    "794d9db8a6"
+  ],
+  "notes": ""
+}

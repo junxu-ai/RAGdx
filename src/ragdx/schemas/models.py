@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field
 LayerName = Literal["retrieval", "generation", "e2e", "pipeline"]
 Severity = Literal["low", "medium", "high", "critical"]
 ToolName = Literal["ragas", "ragchecker", "dspy", "autorag", "manual"]
+SearchStrategy = Literal["bayesian", "pareto_evolutionary"]
+ExecutionMode = Literal["simulate", "prepare_only"]
+TrialStatus = Literal["planned", "running", "done", "failed", "prepared"]
+SessionStatus = Literal["planned", "running", "completed", "failed", "prepared"]
 
 
 class DatasetRecord(BaseModel):
@@ -57,15 +61,21 @@ class OptimizationExperiment(BaseModel):
     target_component: LayerName
     description: str
     parameters: Dict[str, Any] = Field(default_factory=dict)
+    objectives: Dict[str, float] = Field(default_factory=dict)
+    search_space: Dict[str, List[Any]] = Field(default_factory=dict)
+    search_strategy: SearchStrategy = "bayesian"
+    max_trials: int = 8
     status: Literal["planned", "running", "done", "failed"] = "planned"
     baseline_score: Optional[float] = None
     candidate_score: Optional[float] = None
     notes: str = ""
+    config_artifacts: List[str] = Field(default_factory=list)
 
 
 class OptimizationPlan(BaseModel):
     objective_metric: str
     experiments: List[OptimizationExperiment] = Field(default_factory=list)
+    rationale: List[str] = Field(default_factory=list)
 
 
 class ToolRunResult(BaseModel):
@@ -83,6 +93,41 @@ class MetricComparison(BaseModel):
     direction: Literal["improved", "regressed", "unchanged"]
 
 
+class OptimizationTrial(BaseModel):
+    trial_id: str
+    experiment_name: str
+    tool: ToolName
+    strategy: SearchStrategy
+    status: TrialStatus = "planned"
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    config_path: Optional[str] = None
+    objective_scores: Dict[str, float] = Field(default_factory=dict)
+    utility: Optional[float] = None
+    pareto_dominance_count: int = 0
+    pareto_front: bool = False
+    logs: List[str] = Field(default_factory=list)
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    notes: str = ""
+
+
+class OptimizationSession(BaseModel):
+    session_id: str
+    created_at: str
+    run_id: Optional[str] = None
+    strategy: SearchStrategy
+    mode: ExecutionMode = "simulate"
+    status: SessionStatus = "planned"
+    plan: OptimizationPlan
+    total_trials: int = 0
+    completed_trials: int = 0
+    current_experiment: Optional[str] = None
+    trials: List[OptimizationTrial] = Field(default_factory=list)
+    best_trial_id: Optional[str] = None
+    pareto_front_ids: List[str] = Field(default_factory=list)
+    notes: str = ""
+
+
 class SavedRun(BaseModel):
     run_id: str
     created_at: str
@@ -90,6 +135,7 @@ class SavedRun(BaseModel):
     tags: List[str] = Field(default_factory=list)
     notes: str = ""
     baseline_run_id: Optional[str] = None
+    latest_session_id: Optional[str] = None
     evaluation: EvaluationResult
     diagnosis: DiagnosisReport
     optimization_plan: OptimizationPlan

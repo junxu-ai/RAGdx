@@ -1,0 +1,607 @@
+{
+  "session_id": "ae2aacb8b17f",
+  "created_at": "2026-04-16T05:58:41.565394+00:00",
+  "run_id": "e9bfbe8c276a",
+  "strategy": "bayesian",
+  "mode": "prepare_only",
+  "status": "prepared",
+  "plan": {
+    "objective_metric": "answer_correctness",
+    "experiments": [
+      {
+        "name": "retrieval-pipeline-search",
+        "tool": "autorag",
+        "target_component": "retrieval",
+        "description": "Optimize retrieval, reranking, and context packing for better evidence quality.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "context_recall": 0.35,
+          "context_precision": 0.25,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.15
+        },
+        "search_space": {
+          "chunk_size": [
+            256,
+            384,
+            512,
+            768,
+            1024
+          ],
+          "chunk_overlap": [
+            32,
+            64,
+            96,
+            128
+          ],
+          "retriever": [
+            "bm25",
+            "vector",
+            "hybrid"
+          ],
+          "reranker": [
+            "none",
+            "bge-reranker",
+            "cross-encoder"
+          ],
+          "top_k": [
+            4,
+            6,
+            8,
+            10
+          ],
+          "context_ordering": [
+            "retrieval_score",
+            "section_then_score",
+            "diverse_then_score"
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 6,
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "AutoRAG-style search space generated from retrieval diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "generator-prompt-optimization",
+        "tool": "dspy",
+        "target_component": "generation",
+        "description": "Optimize grounded answer synthesis and citation behavior.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "faithfulness": 0.35,
+          "response_relevancy": 0.2,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.2
+        },
+        "search_space": {
+          "optimizer": [
+            "MIPROv2",
+            "BootstrapFewShot",
+            "GEPA"
+          ],
+          "fewshot_count": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "prompt_style": [
+            "grounded_qa",
+            "claim_then_evidence",
+            "citation_first"
+          ],
+          "temperature": [
+            0.0,
+            0.2,
+            0.4
+          ],
+          "max_citations": [
+            1,
+            2,
+            3
+          ],
+          "decomposition": [
+            false,
+            true
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 6,
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "DSPy optimization surface generated from generation diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "joint-pipeline-optimization",
+        "tool": "manual",
+        "target_component": "pipeline",
+        "description": "Run multi-objective search over retrieval/generation operating profiles when component-level root cause is mixed.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "answer_correctness": 0.45,
+          "citation_accuracy": 0.2,
+          "faithfulness": 0.2,
+          "context_recall": 0.15
+        },
+        "search_space": {
+          "retrieval_profile": [
+            "recall_heavy",
+            "balanced",
+            "precision_heavy"
+          ],
+          "generator_profile": [
+            "grounded_qa",
+            "citation_first"
+          ],
+          "verifier": [
+            "none",
+            "claim_checker"
+          ],
+          "context_budget": [
+            3000,
+            4500,
+            6000
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "Joint search is used when the pipeline bottleneck is mixed or inconclusive.",
+        "config_artifacts": []
+      }
+    ],
+    "rationale": [
+      "Retrieval-focused search was selected because the diagnosis indicates evidence miss or ranking noise.",
+      "Generator-side optimization was selected because the diagnosis indicates grounding, citation, or response formation issues.",
+      "A joint search was added to resolve mixed retrieval and generation failures with direct end-to-end tradeoff tracking."
+    ]
+  },
+  "total_trials": 16,
+  "completed_trials": 16,
+  "current_experiment": null,
+  "trials": [
+    {
+      "trial_id": "8c5ad1eefb",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "chunk_size": 512,
+        "chunk_overlap": 128,
+        "retriever": "vector",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\8c5ad1eefb_autorag.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\8c5ad1eefb_autorag.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.565394+00:00",
+      "completed_at": "2026-04-16T05:58:41.572401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "7c5fca96d7",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "chunk_size": 384,
+        "chunk_overlap": 96,
+        "retriever": "vector",
+        "reranker": "cross-encoder",
+        "top_k": 4,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\7c5fca96d7_autorag.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\7c5fca96d7_autorag.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.572401+00:00",
+      "completed_at": "2026-04-16T05:58:41.572401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "8ee785b15d",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "chunk_size": 384,
+        "chunk_overlap": 128,
+        "retriever": "vector",
+        "reranker": "bge-reranker",
+        "top_k": 10,
+        "context_ordering": "retrieval_score"
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\8ee785b15d_autorag.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\8ee785b15d_autorag.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.572401+00:00",
+      "completed_at": "2026-04-16T05:58:41.572401+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "5b3f10fbd1",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "retriever": "hybrid",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\5b3f10fbd1_autorag.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\5b3f10fbd1_autorag.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.572401+00:00",
+      "completed_at": "2026-04-16T05:58:41.581580+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "a17adcc87d",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "retriever": "bm25",
+        "reranker": "none",
+        "top_k": 4,
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\a17adcc87d_autorag.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\a17adcc87d_autorag.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.581580+00:00",
+      "completed_at": "2026-04-16T05:58:41.581580+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "d3e1a0f2b6",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "chunk_size": 1024,
+        "chunk_overlap": 96,
+        "retriever": "hybrid",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\d3e1a0f2b6_autorag.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\d3e1a0f2b6_autorag.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.581580+00:00",
+      "completed_at": "2026-04-16T05:58:41.581580+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "45051757e5",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 2,
+        "decomposition": true
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\45051757e5_dspy.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\45051757e5_dspy.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.581580+00:00",
+      "completed_at": "2026-04-16T05:58:41.581580+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "a2253bc281",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 6,
+        "prompt_style": "claim_then_evidence",
+        "temperature": 0.2,
+        "max_citations": 2,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\a2253bc281_dspy.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\a2253bc281_dspy.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.581580+00:00",
+      "completed_at": "2026-04-16T05:58:41.581580+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "1505109672",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 4,
+        "prompt_style": "citation_first",
+        "temperature": 0.0,
+        "max_citations": 3,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\1505109672_dspy.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\1505109672_dspy.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.581580+00:00",
+      "completed_at": "2026-04-16T05:58:41.581580+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "868402c4b1",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 4,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 1,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\868402c4b1_dspy.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\868402c4b1_dspy.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.581580+00:00",
+      "completed_at": "2026-04-16T05:58:41.581580+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "a7f8c60c79",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.2,
+        "max_citations": 3,
+        "decomposition": false
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\a7f8c60c79_dspy.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\a7f8c60c79_dspy.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.581580+00:00",
+      "completed_at": "2026-04-16T05:58:41.597300+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "cbd9fef86a",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 4,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 2,
+        "decomposition": true
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\cbd9fef86a_dspy.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\cbd9fef86a_dspy.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.597300+00:00",
+      "completed_at": "2026-04-16T05:58:41.597300+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "04beb5db0a",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "retrieval_profile": "precision_heavy",
+        "generator_profile": "citation_first",
+        "verifier": "none",
+        "context_budget": 4500
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\04beb5db0a_manual.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\04beb5db0a_manual.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.597300+00:00",
+      "completed_at": "2026-04-16T05:58:41.597300+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "1db440cbd5",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "retrieval_profile": "balanced",
+        "generator_profile": "citation_first",
+        "verifier": "claim_checker",
+        "context_budget": 6000
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\1db440cbd5_manual.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\1db440cbd5_manual.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.597300+00:00",
+      "completed_at": "2026-04-16T05:58:41.597300+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "079f312dbc",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "retrieval_profile": "precision_heavy",
+        "generator_profile": "grounded_qa",
+        "verifier": "none",
+        "context_budget": 3000
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\079f312dbc_manual.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\079f312dbc_manual.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.597300+00:00",
+      "completed_at": "2026-04-16T05:58:41.597300+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "0cb2665cf8",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "prepared",
+      "parameters": {
+        "retrieval_profile": "balanced",
+        "generator_profile": "grounded_qa",
+        "verifier": "none",
+        "context_budget": 3000
+      },
+      "config_path": ".ragdx\\optimization\\ae2aacb8b17f\\configs\\0cb2665cf8_manual.yaml",
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx\\optimization\\ae2aacb8b17f\\configs\\0cb2665cf8_manual.yaml",
+        "Prepared configuration only. External execution is not started by ragdx in this mode."
+      ],
+      "started_at": "2026-04-16T05:58:41.597300+00:00",
+      "completed_at": "2026-04-16T05:58:41.597300+00:00",
+      "notes": ""
+    }
+  ],
+  "best_trial_id": null,
+  "pareto_front_ids": [],
+  "notes": ""
+}

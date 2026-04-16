@@ -13,15 +13,13 @@ def main() -> None:
         metadata={"dataset": "demo", "tools": ["ragas", "ragchecker"]},
     )
     report = RAGDiagnosisEngine().diagnose(result)
-    plan = OptimizationPlanner().build_plan(report)
+    plan = OptimizationPlanner().build_plan(report, result=result)
     print("Diagnosis summary:")
     print(report.summary)
-    print("
-Priority actions:")
+    print("\nPriority actions:")
     for item in report.priority_actions:
         print(f"- {item}")
-    print("
-Optimization plan:")
+    print("\nOptimization plan:")
     for exp in plan.experiments:
         print(f"- {exp.name} [{exp.tool}] -> {exp.description}")
 
