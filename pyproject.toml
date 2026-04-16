@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ragdx"
-version = "0.3.2"
-description = "RAG evaluation, diagnosis, and optimization workbench integrating Ragas, RAGChecker, DSPy, and AutoRAG"
+version = "0.8.1"
+description = "RAG evaluation, diagnosis, and optimization workbench integrating Ragas, RAGChecker, DSPy, AutoRAG, LangChain, and LlamaIndex"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{name = "OpenAI"}]
@@ -26,10 +26,14 @@ dependencies = [
   "streamlit>=1.35,<2",
   "typer>=0.12,<1",
   "rich>=13.7,<15",
-  "json-repair>=0.20,<1"
+  "scikit-learn>=1.5,<2",
+  "networkx>=3.2,<4"
 ]
 
 [project.optional-dependencies]
+langchain = ["langchain>=0.3,<2", "langchain-core>=0.3,<2", "langchain-community>=0.3,<1"]
+llamaindex = ["llama-index-core>=0.12,<1"]
+bo = ["ax-platform>=1.1,<2", "botorch>=0.17,<1", "torch>=2.2,<3"]
 ragas = ["ragas>=0.3,<0.4"]
 ragchecker = ["ragchecker>=0.1,<0.2"]
 dspy = ["dspy>=2.5.6,<4"]
@@ -40,7 +44,14 @@ all = [
   "ragchecker>=0.1,<0.2",
   "dspy>=2.5.6,<4",
   "AutoRAG>=0.3,<0.4",
-  "openai>=1.30,<2"
+  "openai>=1.30,<2",
+  "langchain>=0.3,<2",
+  "langchain-core>=0.3,<2",
+  "langchain-community>=0.3,<1",
+  "llama-index-core>=0.12,<1",
+  "ax-platform>=1.1,<2",
+  "botorch>=0.17,<1",
+  "torch>=2.2,<3"
 ]
 
 [project.scripts]

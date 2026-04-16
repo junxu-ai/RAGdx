@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from typing import Any, Callable, Dict
 
 from ragdx.schemas.models import DiagnosisReport, EvaluationResult
@@ -16,6 +15,7 @@ You will receive:
 2. measured metrics across retrieval, generation, and end-to-end layers
 3. an initial rule-based diagnosis
 4. metadata about the run
+5. optional evaluator agreement, traces, and feedback signals if available
 
 Reasoning requirements:
 - Start from the metrics, not from stylistic preference.
@@ -28,10 +28,11 @@ Reasoning requirements:
 Output requirements:
 - Return strict JSON only.
 - Use exactly these top-level keys:
-  summary, expected_thresholds, metric_gaps, hypotheses, optimization_candidates, priority_actions
+  summary, expected_thresholds, metric_gaps, hypotheses, optimization_candidates, priority_actions, causal_signals, evaluator_agreement, diagnosis_confidence, disambiguation_actions
 - summary must be concise and specific.
 - hypotheses must be a list of objects with keys:
   component, root_cause, severity, confidence, evidence, recommended_actions
+- causal_signals must be a list of objects with keys: node, component, posterior, prior, evidence, recommended_experiment
 - confidence must be numeric in [0,1].
 - severity must be one of: low, medium, high, critical.
 - component must be one of: retrieval, generation, e2e, pipeline.
@@ -61,7 +62,7 @@ Instructions:
 Output requirements:
 - Return strict JSON only.
 - Use exactly these top-level keys:
-  summary, expected_thresholds, metric_gaps, hypotheses, optimization_candidates, priority_actions
+  summary, expected_thresholds, metric_gaps, hypotheses, optimization_candidates, priority_actions, causal_signals, evaluator_agreement, diagnosis_confidence, disambiguation_actions
 - hypotheses must be deduplicated and ranked by likely leverage.
 - summary should explicitly mention the dominant bottleneck and any secondary issue.
 """.strip()
@@ -92,42 +93,6 @@ class LLMDiagnosisExplainer:
                 return json.loads(text[start : end + 1])
             raise
 
-    @staticmethod
-    def _normalize_component(component: str) -> str:
-        if not isinstance(component, str):
-            return component
-        normalized = component.strip().lower()
-        if normalized in {"retrieval", "generation", "e2e", "pipeline"}:
-            return normalized
-
-        if "retrieval" in normalized:
-            return "retrieval"
-        if "generation" in normalized:
-            return "generation"
-        if "pipeline" in normalized or "observability" in normalized or "orchestr" in normalized:
-            return "pipeline"
-        if "e2e" in normalized or "end-to-end" in normalized or "end to end" in normalized or "citation" in normalized:
-            return "e2e"
-
-        parts = re.split(r"[\/,|]+", normalized)
-        for part in parts:
-            part = part.strip()
-            if part in {"retrieval", "generation", "e2e", "pipeline"}:
-                return part
-
-        return normalized
-
-    def _normalize_report_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if not isinstance(data, dict):
-            return data
-
-        hypotheses = data.get("hypotheses")
-        if isinstance(hypotheses, list):
-            for hyp in hypotheses:
-                if isinstance(hyp, dict) and "component" in hyp:
-                    hyp["component"] = self._normalize_component(hyp["component"])
-        return data
-
     def explain(self, result: EvaluationResult, base_report: DiagnosisReport) -> DiagnosisReport:
         payload = {
             "thresholds": base_report.expected_thresholds,
@@ -138,10 +103,13 @@ class LLMDiagnosisExplainer:
             },
             "initial_diagnosis": base_report.model_dump(),
             "metadata": result.metadata,
+            "traces": [t.model_dump() for t in result.traces[:10]],
+            "feedback_events": [f.model_dump() for f in result.feedback_events[:20]],
+            "evaluator_scores": [e.model_dump() for e in result.evaluator_scores[:50]],
+            "calibrations": [c.model_dump() for c in result.calibrations],
         }
         prompt = f"{self.prompt_template}\n\nINPUT:\n{json.dumps(payload, indent=2)}"
         data = self._coerce_json(self.llm_callable(prompt))
-        data = self._normalize_report_data(data)
         return DiagnosisReport(**data)
 
     def summarize_both(
@@ -157,10 +125,13 @@ class LLMDiagnosisExplainer:
                 "e2e": result.e2e,
             },
             "metadata": result.metadata,
+            "traces": [t.model_dump() for t in result.traces[:10]],
+            "feedback_events": [f.model_dump() for f in result.feedback_events[:20]],
+            "evaluator_scores": [e.model_dump() for e in result.evaluator_scores[:50]],
+            "calibrations": [c.model_dump() for c in result.calibrations],
             "rule_based_diagnosis": rule_report.model_dump(),
             "llm_diagnosis": llm_report.model_dump(),
         }
         prompt = f"{self.summary_prompt_template}\n\nINPUT:\n{json.dumps(payload, indent=2)}"
         data = self._coerce_json(self.llm_callable(prompt))
-        data = self._normalize_report_data(data)
         return DiagnosisReport(**data)

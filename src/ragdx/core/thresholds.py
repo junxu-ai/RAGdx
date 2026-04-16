@@ -14,4 +14,4 @@ DEFAULT_THRESHOLDS = {
     "user_success_rate": 0.85,
 }
 
-LOWER_IS_BETTER = {"noise_sensitivity", "hallucination", "retrieval_latency_ms"}
+LOWER_IS_BETTER = {"noise_sensitivity", "hallucination", "retrieval_latency_ms", "latency_ms", "cost_usd"}

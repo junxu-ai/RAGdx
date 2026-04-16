@@ -1,0 +1,24 @@
+framework: ragdx-manual
+objective_metric: answer_correctness
+objectives:
+  context_recall: 0.3
+  context_precision: 0.25
+  answer_correctness: 0.2
+  citation_accuracy: 0.1
+  latency_ms: 0.08
+  cost_usd: 0.07
+search_parameters:
+  parser: html_semantic
+  document_structure: flat_chunks
+  chunk_size: 384
+  chunk_overlap: 96
+  table_strategy: table_to_text
+constraints:
+  hallucination_max: 0.12
+  noise_sensitivity_max: 0.18
+  latency_ms_max: 6500.0
+  cost_usd_max: 0.04
+optimization_metadata:
+  stage: corpus
+  search_strategy: bayesian
+  max_trials: 3

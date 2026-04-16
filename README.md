@@ -1,52 +1,55 @@
 # ragdx
 
-`ragdx` is a Python library for evaluating, diagnosing, planning, and monitoring Retrieval-Augmented Generation systems.
+`ragdx` is a Python workbench for **RAG evaluation, diagnosis, optimization, and feedback-driven improvement**.
 
-It acts as a control plane around existing tools instead of replacing them:
+It sits above existing tools rather than replacing them:
 
-- **Ragas** for broad metric coverage
-- **RAGChecker** for fine-grained retriever and generator diagnosis
-- **DSPy** for generator-side prompt or program optimization
-- **AutoRAG** for retrieval-pipeline search and YAML-driven experimentation
+- **Ragas** for broad RAG metric coverage
+- **RAGChecker** for retriever and generator decomposition
+- **DSPy** for generator-side prompt and program optimization
+- **AutoRAG** for retrieval-pipeline search and configuration-driven experimentation
 
-## What is new in this release
+## What is new in v0.6.1
 
-This version extends `ragdx` from diagnosis into an optimization workbench.
+This release upgrades `ragdx` from a metric-and-optimization tool into a more complete **closed-loop RAGOps control plane**.
 
-It now supports:
+New capabilities:
 
-- interpreting diagnosis results into optimization rationale
-- defining optimization plans with either `bayesian` or `pareto_evolutionary` search
-- converting those plans into DSPy-style and AutoRAG-style configuration artifacts
-- executing optimization sessions in `simulate` mode for workflow validation and monitoring
-- generating configurations in `prepare_only` mode for external execution in your real runtime
-- storing optimization sessions and surfacing progress in the Streamlit dashboard
+- trace-aware evaluation schema
+- feedback-aware run storage
+- explicit layered causal graph with nodes, weighted edges, evidence propagation, and feedback-adjusted priors
+- evaluator agreement and diagnosis confidence tracking
+- hierarchical optimization plan stages:
+  - corpus
+  - retrieval
+  - generation
+  - orchestration
+  - joint
+- feasible constrained multi-objective optimization with hard constraint checks, penalty-aware utility, and feasible Pareto fronts
+- dashboard tabs for traces, production feedback, and governance
+- CLI support for attaching feedback to saved runs
 
-## Why these choices fit the underlying tools
-
-DSPy exposes optimizer classes, and `MIPROv2` explicitly uses Bayesian Optimization to jointly optimize instructions and few-shot examples. citeturn986709search3turn986709search8
-
-AutoRAG is built around YAML-defined pipeline optimization and experiment search over RAG module combinations, with dedicated documentation for custom optimization config files and execution flow. citeturn986709search1turn986709search6turn986709search9
-
-That makes a split design sensible in `ragdx`:
-
-- use diagnosis to decide whether the next move is retrieval-first, generation-first, or joint
-- map retrieval-heavy plans to AutoRAG-style configurations
-- map generator-heavy plans to DSPy-style configurations
-- track both scalar utility and Pareto-front tradeoffs across multiple objectives
-
-## Core workflow
+## Core architecture
 
 ```mermaid
 flowchart TD
-    A[Tool outputs or normalized evaluation JSON] --> B[EvaluationResult]
-    B --> C[Diagnosis engine]
-    C --> D[Optimization planner]
-    D --> E[Search strategy<br>bayesian or pareto_evolutionary]
-    E --> F[Config generation<br>DSPy or AutoRAG style]
-    F --> G[Optimization session store]
-    G --> H[CLI]
-    G --> I[Dashboard]
+    A[Evaluation JSON + traces + feedback] --> B[Normalized EvaluationResult]
+    B --> C[Rule-based diagnosis]
+    B --> D[Layered causal graph inference]
+    C --> E[DiagnosisReport]
+    D --> E
+    E --> F[Hierarchical optimization planner]
+    F --> G[Corpus stage]
+    F --> H[Retrieval stage]
+    F --> I[Generation stage]
+    F --> J[Orchestration stage]
+    G --> K[Optimization session]
+    H --> K
+    I --> K
+    J --> K
+    K --> L[CLI + dashboard monitoring]
+    L --> M[Production feedback]
+    M --> B
 ```
 
 ## Package structure
@@ -62,10 +65,6 @@ rag_diagnosis_lib_v3/
 │       ├── core/
 │       ├── engines/
 │       ├── optim/
-│       │   ├── autorag_adapter.py
-│       │   ├── dspy_adapter.py
-│       │   ├── executor.py
-│       │   └── planner.py
 │       ├── schemas/
 │       ├── storage/
 │       └── ui/
@@ -96,9 +95,11 @@ Python requirement:
 
 - Python **3.10 or above**
 
-## Normalized evaluation input
+## Normalized evaluation schema
 
-`ragdx` operates on a normalized `EvaluationResult` schema.
+`ragdx` accepts a normalized `EvaluationResult` schema.
+
+### Minimal example
 
 ```json
 {
@@ -127,87 +128,135 @@ Python requirement:
 }
 ```
 
-## Diagnosis
+### Extended example with traces and feedback
 
-### Rule-based diagnosis
-
-The deterministic engine looks at metric gaps against thresholds and identifies likely root causes such as:
-
-- evidence miss despite acceptable retrieval precision
-- retrieval noise or weak ranking quality
-- insufficient grounding on retrieved evidence
-- answer fragility under distractors or unsupported reasoning
-- citation weakness relative to answer generation
-
-### LLM diagnosis
-
-You can refine diagnosis with:
-
-- `--use-llm` for LLM-only refinement over the deterministic report
-- `--use-both` for deterministic diagnosis, LLM refinement, and LLM synthesis of both reports
-
-Environment variables:
-
-```bash
-export OPENAI_API_KEY=your_key
-export RAGDX_OPENAI_MODEL=gpt-5-mini
+```json
+{
+  "retrieval": {"context_precision": 0.63, "context_recall": 0.57},
+  "generation": {"faithfulness": 0.79, "hallucination": 0.19},
+  "e2e": {"answer_correctness": 0.68, "citation_accuracy": 0.71},
+  "metadata": {"dataset": "prod-slice-apr", "dataset_shift": true},
+  "traces": [
+    {
+      "trace_id": "t1",
+      "question": "What is the emissions target?",
+      "answer": "The firm targets net zero by 2050.",
+      "retrieved_chunks": [{"doc_id": "r1", "score": 0.81}],
+      "citations": [1],
+      "latency_ms": 1420,
+      "cost_usd": 0.008
+    }
+  ],
+  "feedback_events": [
+    {
+      "feedback_id": "fb1",
+      "query_id": "t1",
+      "kind": "user_correction",
+      "severity": "medium",
+      "rating": 0.0,
+      "note": "The target year is incorrect."
+    }
+  ],
+  "evaluator_scores": [
+    {"evaluator": "ragas", "metric": "faithfulness", "score": 0.79},
+    {"evaluator": "ragchecker", "metric": "faithfulness", "score": 0.73}
+  ],
+  "calibrations": [
+    {"metric": "faithfulness", "agreement_score": 0.82, "audit_sample_size": 35}
+  ]
+}
 ```
 
-## Optimization planning
+## Diagnosis model
 
-The optimization planner first interprets the diagnosis result.
+`ragdx` now combines three layers:
+
+1. **deterministic diagnosis** from metric gaps
+2. **Bayesian-style causal signals** that incorporate traces, feedback, and evaluator agreement
+3. **optional LLM refinement** using `--use-llm` or `--use-both`
+
+### Diagnosis output additions
+
+A `DiagnosisReport` now includes:
+
+- `causal_signals`
+- `evaluator_agreement`
+- `diagnosis_confidence`
+- `disambiguation_actions`
+
+### Typical causal nodes
 
 Examples:
 
-- **retrieval recall or retrieval precision problem** → retrieval-pipeline search via AutoRAG-style config
-- **grounding, citation, or synthesis problem** → prompt or program optimization via DSPy-style config
-- **mixed pipeline problem** → joint multi-objective search with Pareto tracking
+- `corpus_chunking_defect`
+- `retrieval_recall_defect`
+- `retrieval_precision_defect`
+- `context_packing_defect`
+- `grounding_defect`
+- `citation_binding_defect`
+- `judge_or_metric_instability`
+- `distribution_shift`
 
-Each experiment includes:
+## Hierarchical optimization planning
 
-- target component
-- objective weights
-- search space
-- search strategy
-- trial budget
-- generated config artifacts
+The planner no longer emits only one generic retrieval or generator search.
 
-## Search strategies
+It now builds staged plans based on diagnosis:
 
-### 1. Bayesian
+### 1. Corpus stage
 
-Use `--strategy bayesian`.
+Examples:
 
-This is intended for cases where you want a sequential, utility-driven search. In `ragdx`, the planner uses diagnosis-informed search spaces and a Bayesian-style sequential candidate selection policy suitable for prompt or retrieval parameter tuning.
+- parser selection
+- structure preservation
+- chunk size and overlap
+- table handling
 
-This aligns particularly well with DSPy’s `MIPROv2`, which uses Bayesian Optimization. citeturn986709search8
+### 2. Retrieval stage
 
-### 2. Pareto-efficient evolutionary search
+Examples:
 
-Use `--strategy pareto_evolutionary`.
+- retriever type
+- embedding model
+- reranker
+- top-k
+- query rewriting
+- context ordering
 
-This is intended for cases where multiple objectives matter at the same time, for example:
+### 3. Generation stage
 
-- answer correctness
-- citation accuracy
-- faithfulness
-- context recall
+Examples:
 
-`ragdx` tracks a Pareto front over completed trials so you can inspect tradeoffs instead of over-collapsing everything into a single scalar score.
+- DSPy optimizer choice
+- few-shot count
+- prompt style
+- verifier use
+- citation behavior
 
-## Execution modes
+### 4. Orchestration stage
 
-### `simulate`
+Examples:
 
-This mode executes the full optimization workflow inside `ragdx` with simulated objective updates. It is useful for:
+- retry retrieval
+- follow-up question policy
+- abstention policy
+- planner type
+- context budget
 
-- validating the workflow end to end
-- exercising the dashboard and run store
-- checking that diagnosis, plan generation, config emission, and progress tracking all work
+### 5. Joint stage
 
-### `prepare_only`
+Used when the diagnosis is mixed or inconclusive.
 
-This mode writes the DSPy-style and AutoRAG-style config artifacts without simulating scores. It is useful when you want `ragdx` to prepare experiment configurations for execution in your own environment.
+## Optimization constraints
+
+Every planned experiment can carry hard or soft operational constraints, for example:
+
+- maximum hallucination
+- maximum noise sensitivity
+- maximum latency
+- maximum cost
+
+This is intended to prevent optimization from improving one metric by degrading risk or operating characteristics too far.
 
 ## CLI reference
 
@@ -231,7 +280,7 @@ ragdx plan examples/demo_evaluation.json --strategy pareto_evolutionary --budget
 ```bash
 ragdx optimize examples/demo_evaluation.json --strategy bayesian --budget 12 --mode simulate
 ragdx optimize examples/demo_evaluation.json --strategy pareto_evolutionary --budget 16 --mode prepare_only
-ragdx optimize examples/demo_evaluation.json --strategy bayesian --budget 12 --mode simulate --use-both
+ragdx optimize examples/demo_evaluation.json --strategy bayesian --budget 12 --mode execute --use-both
 ```
 
 ### Runs and sessions
@@ -239,7 +288,19 @@ ragdx optimize examples/demo_evaluation.json --strategy bayesian --budget 12 --m
 ```bash
 ragdx runs
 ragdx sessions
+ragdx monitor-session <SESSION_ID>
 ```
+
+### Feedback loop
+
+Attach a feedback file to an existing run:
+
+```bash
+ragdx attach-feedback <RUN_ID> examples/feedback_events.json
+ragdx feedback-summary
+```
+
+The feedback JSON may be a single object or a list.
 
 ### Dashboard
 
@@ -247,214 +308,235 @@ ragdx sessions
 ragdx dashboard
 ```
 
-## What `ragdx optimize` produces
+## Execution modes
 
-For each experiment, `ragdx` creates:
+### `simulate`
 
-- an optimization session record under `.ragdx/optimization/sessions`
-- per-trial config artifacts under `.ragdx/optimization/<session_id>/configs`
-- scalar utility values for ranking trials
-- Pareto-front flags for multi-objective inspection
+Runs the optimization workflow end to end inside `ragdx` using simulated scoring.
 
-## DSPy configuration mapping
+### `prepare_only`
 
-Generator-oriented experiments are converted into a DSPy-style config payload with fields such as:
+Writes executable config artifacts without launching external runners.
 
-- optimizer
-- objective weights
-- tunable parts
-- few-shot count
-- prompt style
-- decomposition flag
+### `execute`
 
-Example high-level shape:
+Uses configured external runner command templates and ingests result JSON files back into the optimization session.
 
-```yaml
-framework: dspy
-optimizer: MIPROv2
-objectives:
-  faithfulness: 0.85
-  response_relevancy: 0.80
-  answer_correctness: 0.85
-  citation_accuracy: 0.90
-search_parameters:
-  optimizer: MIPROv2
-  fewshot_count: 4
-  prompt_style: citation_first
-  temperature: 0.2
-  max_citations: 2
-  decomposition: true
-```
+## External runner configuration
 
-## AutoRAG configuration mapping
-
-Retrieval-oriented experiments are converted into an AutoRAG-style YAML payload with fields such as:
-
-- retrieval node choice
-- reranker choice
-- chunk size
-- overlap
-- top-k
-- context ordering
-
-Example high-level shape:
-
-```yaml
-framework: autorag
-yaml_template:
-  version: 1
-  optimization:
-    strategy: bayesian
-    trials: 6
-  node_lines:
-    - name: retrieval_line
-      nodes:
-        - kind: retrieval
-          name: hybrid
-          params:
-            top_k: 6
-        - kind: reranker
-          name: bge-reranker
-          params:
-            enabled: true
-        - kind: chunking
-          name: semantic_chunker
-          params:
-            chunk_size: 512
-            chunk_overlap: 64
-  postprocess:
-    context_ordering: section_then_score
-```
-
-These generated files are templates for your runtime, not a guarantee that every field name exactly matches every future release of the external tools.
-
-## Dashboard
-
-The dashboard now has dedicated monitoring for optimization sessions.
-
-You can inspect:
-
-- saved optimization sessions
-- current progress
-- trial table
-- scalar utility trend
-- Pareto-front trials
-- generated config artifacts for each trial
-
-Launch it with:
+Set environment variables for external trial launchers:
 
 ```bash
-streamlit run src/ragdx/ui/dashboard.py
+export RAGDX_DSPY_RUNNER_CMD='python examples/run_external_trial_example.py --config {config} --output {output}'
+export RAGDX_AUTORAG_RUNNER_CMD='python examples/run_external_trial_example.py --config {config} --output {output}'
 ```
 
-or
+Supported placeholders:
 
-```bash
-ragdx dashboard
-```
+- `{config}`
+- `{output}`
+- `{workdir}`
+- `{trial_id}`
+- `{session_id}`
+- `{tool}`
+
+## Dashboard views
+
+The Streamlit dashboard includes:
+
+- **Scores**
+- **Diagnosis**
+- **Optimization Plan**
+- **Optimization Sessions**
+- **Traces**
+- **Feedback & Governance**
+- **Compare**
+- **Raw JSON**
 
 ## Programmatic usage
 
 ```python
 from ragdx.core.diagnosis import RAGDiagnosisEngine
-from ragdx.optim.executor import OptimizationExecutor
 from ragdx.optim.planner import OptimizationPlanner
 from ragdx.schemas.models import EvaluationResult
 
 result = EvaluationResult(
     retrieval={"context_precision": 0.63, "context_recall": 0.57},
-    generation={"faithfulness": 0.79, "response_relevancy": 0.82},
+    generation={"faithfulness": 0.79, "hallucination": 0.19},
     e2e={"answer_correctness": 0.68, "citation_accuracy": 0.71},
-    metadata={"dataset": "demo"},
 )
 
 report = RAGDiagnosisEngine().diagnose(result)
-plan = OptimizationPlanner().build_plan(report, result=result, strategy="pareto_evolutionary", budget=12)
-session = OptimizationExecutor().execute_plan(plan, baseline=result, strategy="pareto_evolutionary", mode="simulate")
+plan = OptimizationPlanner().build_plan(report, result=result, strategy="bayesian", budget=12)
+
+print(report.summary)
+for signal in report.causal_signals[:3]:
+    print(signal.node, signal.posterior)
+for exp in plan.experiments:
+    print(exp.stage, exp.name)
+```
+
+## Testing
+
+```bash
+PYTHONPATH=src pytest -q
 ```
 
 ## Limitations
 
-- Live execution against DSPy and AutoRAG is environment-dependent.
-- `simulate` mode is for orchestration validation and dashboard monitoring, not for claiming real model gains.
-- `prepare_only` mode emits grounded config artifacts but does not launch your external jobs.
-- The exact integration surface of Ragas, RAGChecker, DSPy, and AutoRAG can evolve over time.
+This release adds stronger control-plane logic, but some boundaries remain:
 
-## Recommended next step
+- external DSPy and AutoRAG execution still depends on your local runtime and dataset wiring
+- Bayesian causal signals are heuristic and probabilistic, not formally learned from historical labeled failures yet
+- evaluator agreement is useful, but not a substitute for a human-audited calibration set
 
-The next practical extension is to connect `prepare_only` configurations to your real runtime, for example:
+## Suggested next step
 
-- a DSPy program plus metric function and dev set
-- an AutoRAG dataset and YAML runner
-- ingestion of completed external trial scores back into `ragdx`
+The next natural upgrade is to add:
 
-That would turn the current orchestration and monitoring layer into a live optimization loop.
+- true OpenTelemetry span ingestion
+- evaluator ensemble calibration against gold labels
+- online canary tracking and rollback states
+- benchmark evolution from clustered production failures
 
 
-## Live optimization execution and monitoring
 
-`ragdx` now supports three optimization modes:
+## What is new in v0.7.0
 
-- `simulate`: run the internal optimizer simulator
-- `prepare_only`: write configs without launching external tools
-- `execute`: launch external runners, ingest scores, and checkpoint session progress after every trial
+This version closes the remaining major gaps from the earlier patches.
 
-### External runner commands
+- Explicit causal graph inference using a directed graph with weighted propagation
+- Persistent causal prior learning stored under `.ragdx/causal/priors.json`
+- Constraint-aware model-based optimization using Gaussian-process surrogates over the finite search space
+- Feasibility-aware candidate selection using predicted feasibility probability and expected hypervolume improvement
+- Session-level hypervolume and feasible hypervolume tracking
+- Dashboard support for feasibility and hypervolume monitoring
 
-In `execute` mode, `ragdx` reads tool-specific command templates from environment variables. Each template can use these placeholders:
+### Constrained optimization
 
-- `{config}`: path to the generated YAML config
-- `{output}`: path where the runner must write a JSON result file
-- `{workdir}`: working directory for trial artifacts
-- `{trial_id}`: the ragdx trial id
-- `{session_id}`: the ragdx session id
-- `{tool}`: tool name
+The Bayesian optimization path is now multi-objective and constraint-aware. For each experiment, ragdx:
 
-Supported variables:
+1. fits surrogate models for objective and constraint metrics from completed trials
+2. estimates feasibility probability for each unseen candidate
+3. estimates expected hypervolume improvement over the current feasible Pareto front
+4. ranks candidates using feasibility, hypervolume improvement, scalar utility, and exploration
 
-- `RAGDX_DSPY_RUNNER_CMD`
-- `RAGDX_AUTORAG_RUNNER_CMD`
-- `RAGDX_MANUAL_RUNNER_CMD`
+This is materially stronger than the earlier weighted-utility-only trial ordering.
 
-Example:
+### Layered causal graph
+
+The diagnosis engine now uses an explicit directed causal graph with weighted edges and persistent priors. Evidence comes from:
+
+- metric gaps
+- evaluator agreement
+- trace-level attribution
+- attached feedback events
+- saved historical causal priors
+
+Priors are updated after diagnosis so repeated production failures shift the starting probabilities for later runs.
+
+
+## LangChain and LlamaIndex execution
+
+`ragdx` can now emit executable trial configurations for LangChain and LlamaIndex and can launch them through runner commands. Set one or both of these environment variables:
 
 ```bash
-export RAGDX_DSPY_RUNNER_CMD='python scripts/run_dspy_trial.py --config {config} --output {output}'
-export RAGDX_AUTORAG_RUNNER_CMD='python scripts/run_autorag_trial.py --config {config} --output {output}'
+export RAGDX_LANGCHAIN_RUNNER_CMD='python examples/run_langchain_trial.py --config {config} --output {output}'
+export RAGDX_LLAMAINDEX_RUNNER_CMD='python examples/run_llamaindex_trial.py --config {config} --output {output}'
 ```
 
-Each runner should write JSON containing either:
+To make the planner include a runtime validation experiment, place the target runtime in the evaluation metadata:
 
 ```json
 {
-  "objective_scores": {
-    "answer_correctness": 0.79,
-    "citation_accuracy": 0.82
+  "metadata": {
+    "runtime_framework": "langchain",
+    "dataset_path": "examples/demo_dataset.jsonl",
+    "pipeline_module": "examples.langchain_pipeline:create_pipeline"
   }
 }
 ```
 
-or a normalized metrics document with `retrieval`, `generation`, and/or `e2e` sections.
+or:
 
-### Execute and monitor
-
-```bash
-ragdx optimize examples/demo_evaluation.json --strategy bayesian --budget 8 --mode execute
-ragdx sessions
-ragdx monitor-session <SESSION_ID>
-streamlit run src/ragdx/ui/dashboard.py
+```json
+{
+  "metadata": {
+    "runtime_framework": "llamaindex",
+    "dataset_path": "examples/demo_dataset.jsonl",
+    "pipeline_module": "examples.llamaindex_pipeline:create_query_engine"
+  }
+}
 ```
 
-The dashboard session tab now shows:
+## Heavyweight Bayesian optimization backends
 
-- current progress
-- best trial
-- Pareto-front trials
-- config YAML
-- runner logs
-- runner JSON outputs
+The default Bayesian search remains the built-in surrogate-based search. To use a heavyweight backend, set:
 
-Because `ragdx` checkpoints the session JSON after each trial, the dashboard can monitor long-running optimization jobs while they are still executing.
+```bash
+export RAGDX_BO_BACKEND=ax
+```
+
+When `ax-platform` is installed, `ragdx` uses an ask/tell loop to propose candidates for multi-objective experiments and to register completed trials with outcome constraints. If Ax is not installed or cannot initialize the experiment, `ragdx` falls back to the internal model-based search.
+
+Recommended extras:
+
+```bash
+pip install -e ".[langchain,llamaindex,bo]"
+```
+
+## Examples
+
+Show runner templates:
+
+```bash
+ragdx show-runner-templates
+```
+
+Run a LangChain-backed optimization session:
+
+```bash
+export RAGDX_LANGCHAIN_RUNNER_CMD='python examples/run_langchain_trial.py --config {config} --output {output}'
+ragdx optimize examples/demo_evaluation_langchain.json --strategy bayesian --mode execute --budget 6
+```
+
+Run a LlamaIndex-backed optimization session:
+
+```bash
+export RAGDX_LLAMAINDEX_RUNNER_CMD='python examples/run_llamaindex_trial.py --config {config} --output {output}'
+ragdx optimize examples/demo_evaluation_llamaindex.json --strategy bayesian --mode execute --budget 6
+```
 
 
-If a runner command is not configured for a planned experiment, `ragdx` falls back to simulated scoring by default during `execute` mode. To force hard failures instead, set `RAGDX_FALLBACK_SIMULATE_ON_MISSING_RUNNER=0`.
+## Baseline-aware planner and LLM plan refinement
+
+`OptimizationPlanner` no longer relies on fixed objective weights and static global constraints. It now computes:
+
+- baseline-aware objective weights from the current scores and diagnosis gaps
+- baseline-aware target thresholds for both maximize and minimize metrics
+- tighter constraints when the current baseline is already stronger than a generic default
+
+You can also ask the planner to use an LLM to refine the heuristic plan. The LLM sees the current baseline metrics, diagnosis report, heuristic plan, budget, and strategy, then returns JSON guidance to adjust:
+
+- objective weights
+- target thresholds
+- constraint overrides
+- focused subspaces in the search space
+- experiment trial budgets
+
+CLI examples:
+
+```bash
+export OPENAI_API_KEY=your_key
+export RAGDX_OPENAI_MODEL=gpt-5.4-thinking
+
+ragdx plan examples/demo_evaluation.json --use-llm-planner
+ragdx optimize examples/demo_evaluation_langchain.json --use-llm-planner --mode execute --budget 6
+ragdx save examples/demo_evaluation.json --use-llm-planner
+```
+
+Behavior notes:
+
+- `--use-llm` or `--use-both` for diagnosis will also enable LLM-backed planning automatically
+- `--use-llm-planner` can be used independently when you want rule-based diagnosis but LLM-refined planning
+- if the LLM call fails or returns invalid JSON, the planner falls back to the deterministic baseline-aware heuristic plan

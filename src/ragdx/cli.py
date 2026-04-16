@@ -16,10 +16,32 @@ from ragdx.core.evaluator import UnifiedEvaluator
 from ragdx.engines.llm_diagnosis import LLMDiagnosisExplainer
 from ragdx.optim.executor import OptimizationExecutor
 from ragdx.optim.planner import OptimizationPlanner
-from ragdx.schemas.models import EvaluationResult
+from ragdx.schemas.models import EvaluationResult, FeedbackEvent
 from ragdx.storage.run_store import RunStore
 
 app = typer.Typer(add_completion=False)
+
+
+def _build_openai_llm_callable() -> callable:
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise typer.BadParameter(
+            "LLM support requires the openai extra. Install with: pip install -e '.[openai]'"
+        ) from exc
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise typer.BadParameter("OPENAI_API_KEY is required for LLM-backed diagnosis or planning.")
+
+    model = os.environ.get("RAGDX_OPENAI_MODEL", "gpt-5.4-thinking")
+    client = OpenAI(api_key=api_key)
+
+    def llm_callable(prompt: str) -> str:
+        response = client.responses.create(model=model, input=prompt)
+        return response.output_text
+
+    return llm_callable
 
 
 def _load_eval(path: str | Path) -> EvaluationResult:
@@ -30,24 +52,7 @@ def _load_eval(path: str | Path) -> EvaluationResult:
 def _build_engine(use_llm: bool = False, use_both: bool = False) -> RAGDiagnosisEngine:
     if not use_llm and not use_both:
         return RAGDiagnosisEngine()
-    try:
-        from openai import OpenAI
-    except Exception as exc:
-        raise typer.BadParameter(
-            "LLM diagnosis requires the openai extra. Install with: pip install -e '.[openai]'"
-        ) from exc
-
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise typer.BadParameter("OPENAI_API_KEY is required when using --use-llm or --use-both.")
-
-    model = os.environ.get("RAGDX_OPENAI_MODEL", "")
-    client = OpenAI(api_key=api_key)
-
-    def llm_callable(prompt: str) -> str:
-        response = client.responses.create(model=model, input=prompt)
-        return response.output_text
-
+    llm_callable = _build_openai_llm_callable()
     return RAGDiagnosisEngine(llm_explainer=LLMDiagnosisExplainer(llm_callable=llm_callable))
 
 
@@ -55,12 +60,14 @@ def _diagnose_and_plan(
     result: EvaluationResult,
     use_llm: bool = False,
     use_both: bool = False,
+    use_llm_planner: bool = False,
     strategy: str = "bayesian",
     budget: int = 12,
 ):
     engine = _build_engine(use_llm=use_llm, use_both=use_both)
     report = engine.diagnose(result, use_llm=use_llm, use_both=use_both)
-    plan = OptimizationPlanner().build_plan(report, result=result, strategy=strategy, budget=budget)
+    planner_llm = _build_openai_llm_callable() if (use_llm_planner or use_llm or use_both) else None
+    plan = OptimizationPlanner(llm_callable=planner_llm).build_plan(report, result=result, strategy=strategy, budget=budget)
     return report, plan
 
 
@@ -72,11 +79,12 @@ def diagnose(
     baseline_run_id: str = "",
     use_llm: bool = typer.Option(False, help="Use LLM diagnosis instead of rule-based diagnosis."),
     use_both: bool = typer.Option(False, help="Run rule-based diagnosis, run LLM diagnosis, then summarize both with the LLM."),
+    use_llm_planner: bool = typer.Option(False, help="Use an LLM to refine the optimization plan after heuristic planning."),
 ):
     if use_llm and use_both:
         raise typer.BadParameter("Use either --use-llm or --use-both, not both.")
     result = _load_eval(eval_json)
-    report, plan = _diagnose_and_plan(result, use_llm=use_llm, use_both=use_both)
+    report, plan = _diagnose_and_plan(result, use_llm=use_llm, use_both=use_both, use_llm_planner=use_llm_planner)
     if save:
         run = RunStore().save_run(result, report, plan, name=name or None, baseline_run_id=baseline_run_id or None)
         print(f"Saved run: {run.run_id}")
@@ -88,9 +96,10 @@ def plan(
     eval_json: str,
     strategy: str = typer.Option("bayesian", help="Search strategy: bayesian or pareto_evolutionary."),
     budget: int = typer.Option(12, help="Trial budget to distribute across experiments."),
+    use_llm_planner: bool = typer.Option(False, help="Use an LLM to refine the optimization plan after heuristic planning."),
 ):
     result = _load_eval(eval_json)
-    report, plan = _diagnose_and_plan(result, strategy=strategy, budget=budget)
+    report, plan = _diagnose_and_plan(result, strategy=strategy, budget=budget, use_llm_planner=use_llm_planner)
     print(plan.model_dump_json(indent=2))
 
 
@@ -104,6 +113,7 @@ def optimize(
     name: str = "",
     use_llm: bool = typer.Option(False, help="Use LLM diagnosis instead of rule-based diagnosis."),
     use_both: bool = typer.Option(False, help="Run rule-based diagnosis, run LLM diagnosis, then summarize both with the LLM."),
+    use_llm_planner: bool = typer.Option(False, help="Use an LLM to refine the optimization plan after heuristic planning."),
 ):
     if use_llm and use_both:
         raise typer.BadParameter("Use either --use-llm or --use-both, not both.")
@@ -113,7 +123,7 @@ def optimize(
         raise typer.BadParameter("mode must be simulate, prepare_only, or execute")
 
     result = _load_eval(eval_json)
-    report, plan = _diagnose_and_plan(result, use_llm=use_llm, use_both=use_both, strategy=strategy, budget=budget)
+    report, plan = _diagnose_and_plan(result, use_llm=use_llm, use_both=use_both, use_llm_planner=use_llm_planner, strategy=strategy, budget=budget)
     store = RunStore()
     run = None
     if save_run:
@@ -150,11 +160,12 @@ def save(
     baseline_run_id: str = "",
     use_llm: bool = typer.Option(False, help="Use LLM diagnosis instead of rule-based diagnosis."),
     use_both: bool = typer.Option(False, help="Run rule-based diagnosis, run LLM diagnosis, then summarize both with the LLM."),
+    use_llm_planner: bool = typer.Option(False, help="Use an LLM to refine the optimization plan after heuristic planning."),
 ):
     if use_llm and use_both:
         raise typer.BadParameter("Use either --use-llm or --use-both, not both.")
     result = _load_eval(eval_json)
-    report, plan = _diagnose_and_plan(result, use_llm=use_llm, use_both=use_both)
+    report, plan = _diagnose_and_plan(result, use_llm=use_llm, use_both=use_both, use_llm_planner=use_llm_planner)
     run = RunStore().save_run(
         result,
         report,
@@ -168,6 +179,20 @@ def save(
 
 
 @app.command()
+def attach_feedback(run_id: str, feedback_json: str):
+    payload = json.loads(Path(feedback_json).read_text(encoding="utf-8"))
+    events = payload if isinstance(payload, list) else [payload]
+    typed = [FeedbackEvent(**item) for item in events]
+    run = RunStore().attach_feedback_to_run(run_id, typed)
+    print(json.dumps({"run_id": run.run_id, "feedback_attached": len(typed), "total_feedback": len(run.evaluation.feedback_events)}, indent=2))
+
+
+@app.command()
+def feedback_summary():
+    print(json.dumps(RunStore().feedback_summary(), indent=2))
+
+
+@app.command()
 def runs():
     store = RunStore()
     rows = store.list_runs()
@@ -177,9 +202,10 @@ def runs():
     table.add_column("Name")
     table.add_column("Baseline")
     table.add_column("Latest session")
+    table.add_column("Feedback")
     table.add_column("Tags")
     for r in rows:
-        table.add_row(r.run_id, r.created_at, r.name, r.baseline_run_id or "", r.latest_session_id or "", ", ".join(r.tags))
+        table.add_row(r.run_id, r.created_at, r.name, r.baseline_run_id or "", r.latest_session_id or "", str(len(r.evaluation.feedback_events)), ", ".join(r.tags))
     print(table)
 
 
@@ -220,14 +246,13 @@ def dashboard():
     subprocess.run([sys.executable, "-m", "streamlit", "run", str(Path(__file__).parent / "ui" / "dashboard.py")], check=False)
 
 
-if __name__ == "__main__":
-    app()
-
-
 @app.command()
 def monitor_session(session_id: str, show_logs: bool = typer.Option(False, help="Show per-trial logs.")):
     session = RunStore().load_session(session_id)
-    print(session.model_dump_json(indent=2) if show_logs else json.dumps({
+    if show_logs:
+        print(session.model_dump_json(indent=2))
+        return
+    print(json.dumps({
         "session_id": session.session_id,
         "status": session.status,
         "strategy": session.strategy,
@@ -237,3 +262,18 @@ def monitor_session(session_id: str, show_logs: bool = typer.Option(False, help=
         "best_trial_id": session.best_trial_id,
         "pareto_front_ids": session.pareto_front_ids,
     }, indent=2))
+
+
+if __name__ == "__main__":
+    app()
+
+
+@app.command()
+def show_runner_templates():
+    templates = {
+        "RAGDX_DSPY_RUNNER_CMD": "python examples/run_external_trial_example.py --config {config} --output {output}",
+        "RAGDX_AUTORAG_RUNNER_CMD": "python examples/run_external_trial_example.py --config {config} --output {output}",
+        "RAGDX_LANGCHAIN_RUNNER_CMD": "python examples/run_langchain_trial.py --config {config} --output {output}",
+        "RAGDX_LLAMAINDEX_RUNNER_CMD": "python examples/run_llamaindex_trial.py --config {config} --output {output}",
+    }
+    print(json.dumps(templates, indent=2))

@@ -1,0 +1,20 @@
+[
+  {
+    "feedback_id": "fb-001",
+    "query_id": "trace-001",
+    "kind": "user_correction",
+    "severity": "medium",
+    "rating": 0.0,
+    "note": "The answer cited the wrong section.",
+    "created_at": "2026-04-16T00:00:00Z"
+  },
+  {
+    "feedback_id": "fb-002",
+    "query_id": "trace-002",
+    "kind": "hallucination",
+    "severity": "high",
+    "rating": 0.0,
+    "note": "The answer introduced a fact not present in the report.",
+    "created_at": "2026-04-16T00:05:00Z"
+  }
+]

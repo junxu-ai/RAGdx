@@ -1,0 +1,717 @@
+{
+  "session_id": "ae853b59ac90",
+  "created_at": "2026-04-16T00:53:20.693389+00:00",
+  "run_id": null,
+  "strategy": "bayesian",
+  "mode": "simulate",
+  "status": "completed",
+  "plan": {
+    "objective_metric": "answer_correctness",
+    "experiments": [
+      {
+        "name": "corpus-chunking-search",
+        "tool": "manual",
+        "target_component": "retrieval",
+        "description": "Optimize parsing, structure preservation, and chunking before retrieval tuning.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 2 diagnosis hypotheses were generated. Lead causal node: corpus_chunking_defect with posterior 0.83.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "context_recall": 0.3,
+          "context_precision": 0.25,
+          "answer_correctness": 0.2,
+          "citation_accuracy": 0.1,
+          "latency_ms": 0.08,
+          "cost_usd": 0.07
+        },
+        "search_space": {
+          "parser": [
+            "pymupdf_layout",
+            "unstructured",
+            "html_semantic"
+          ],
+          "document_structure": [
+            "preserve_sections",
+            "flat_chunks"
+          ],
+          "chunk_size": [
+            384,
+            512,
+            768,
+            1024
+          ],
+          "chunk_overlap": [
+            32,
+            64,
+            96,
+            128
+          ],
+          "table_strategy": [
+            "repeat_headers",
+            "table_to_text"
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 3,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "Trace-aware corpus search is used when chunking or ingestion defects appear likely.",
+        "config_artifacts": [],
+        "stage": "corpus",
+        "constraints": {
+          "hallucination_max": 0.12,
+          "noise_sensitivity_max": 0.18,
+          "latency_ms_max": 6500.0,
+          "cost_usd_max": 0.04
+        },
+        "depends_on": []
+      },
+      {
+        "name": "retrieval-pipeline-search",
+        "tool": "autorag",
+        "target_component": "retrieval",
+        "description": "Optimize retrieval, reranking, and context packing for better evidence quality.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 2 diagnosis hypotheses were generated. Lead causal node: corpus_chunking_defect with posterior 0.83.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "context_recall": 0.3,
+          "context_precision": 0.25,
+          "answer_correctness": 0.2,
+          "citation_accuracy": 0.1,
+          "latency_ms": 0.08,
+          "cost_usd": 0.07
+        },
+        "search_space": {
+          "retriever": [
+            "bm25",
+            "vector",
+            "hybrid"
+          ],
+          "embedding_model": [
+            "bge-m3",
+            "e5-large-v2",
+            "gte-large"
+          ],
+          "reranker": [
+            "none",
+            "bge-reranker",
+            "cross-encoder"
+          ],
+          "top_k": [
+            4,
+            6,
+            8,
+            10
+          ],
+          "query_rewrite": [
+            "none",
+            "multi_query",
+            "decompose"
+          ],
+          "context_ordering": [
+            "retrieval_score",
+            "section_then_score",
+            "diverse_then_score"
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "AutoRAG-style search space generated from retrieval diagnosis.",
+        "config_artifacts": [],
+        "stage": "retrieval",
+        "constraints": {
+          "hallucination_max": 0.12,
+          "noise_sensitivity_max": 0.18,
+          "latency_ms_max": 6500.0,
+          "cost_usd_max": 0.04
+        },
+        "depends_on": [
+          "corpus-chunking-search"
+        ]
+      },
+      {
+        "name": "generator-prompt-optimization",
+        "tool": "dspy",
+        "target_component": "generation",
+        "description": "Optimize grounded answer synthesis, citation behavior, and verification.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 2 diagnosis hypotheses were generated. Lead causal node: corpus_chunking_defect with posterior 0.83.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "faithfulness": 0.28,
+          "response_relevancy": 0.16,
+          "answer_correctness": 0.22,
+          "citation_accuracy": 0.14,
+          "hallucination": 0.12,
+          "cost_usd": 0.08
+        },
+        "search_space": {
+          "optimizer": [
+            "MIPROv2",
+            "BootstrapFewShot",
+            "GEPA"
+          ],
+          "fewshot_count": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "prompt_style": [
+            "grounded_qa",
+            "claim_then_evidence",
+            "citation_first"
+          ],
+          "temperature": [
+            0.0,
+            0.2,
+            0.4
+          ],
+          "max_citations": [
+            1,
+            2,
+            3
+          ],
+          "verifier": [
+            "none",
+            "claim_checker"
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "DSPy optimization surface generated from generation diagnosis.",
+        "config_artifacts": [],
+        "stage": "generation",
+        "constraints": {
+          "hallucination_max": 0.12,
+          "noise_sensitivity_max": 0.18,
+          "latency_ms_max": 6500.0,
+          "cost_usd_max": 0.04
+        },
+        "depends_on": [
+          "retrieval-pipeline-search"
+        ]
+      }
+    ],
+    "rationale": [
+      "A corpus-stage experiment was added because the diagnosis indicates missing evidence may originate in parsing or chunking.",
+      "A retrieval-stage search was selected because the diagnosis indicates evidence miss or ranking noise.",
+      "A generation-stage optimization was selected because the diagnosis indicates grounding, citation, or response formation issues."
+    ]
+  },
+  "total_trials": 11,
+  "completed_trials": 11,
+  "current_experiment": null,
+  "trials": [
+    {
+      "trial_id": "33af861f63",
+      "experiment_name": "corpus-chunking-search",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "parser": "html_semantic",
+        "document_structure": "preserve_sections",
+        "chunk_size": 384,
+        "chunk_overlap": 96,
+        "table_strategy": "repeat_headers"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/33af861f63_manual.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "noise_sensitivity": 0.1809,
+        "hallucination": 0.1009,
+        "context_precision": 0.6231,
+        "latency_ms": 0.3019,
+        "answer_correctness": 0.6631,
+        "context_recall": 0.5681,
+        "cost_usd": 0.0219,
+        "citation_accuracy": 0.6981
+      },
+      "utility": 0.652,
+      "feasible": false,
+      "constraint_violations": {
+        "noise_sensitivity_max": 0.0009
+      },
+      "feasibility_penalty": 0.0009,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/33af861f63_manual.yaml",
+        "Simulated objective scores: {'noise_sensitivity': 0.1809, 'hallucination': 0.1009, 'context_precision': 0.6231, 'latency_ms': 0.3019, 'answer_correctness': 0.6631, 'context_recall': 0.5681, 'cost_usd': 0.0219, 'citation_accuracy': 0.6981}",
+        "Constraint violations: {'noise_sensitivity_max': 0.0009}"
+      ],
+      "started_at": "2026-04-16T00:53:20.695466+00:00",
+      "completed_at": "2026-04-16T00:53:20.699195+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "6f88d54f98",
+      "experiment_name": "corpus-chunking-search",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "parser": "html_semantic",
+        "document_structure": "flat_chunks",
+        "chunk_size": 384,
+        "chunk_overlap": 96,
+        "table_strategy": "table_to_text"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/6f88d54f98_manual.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "noise_sensitivity": 0.1877,
+        "hallucination": 0.1077,
+        "context_precision": 0.6163,
+        "latency_ms": 0.3087,
+        "answer_correctness": 0.6563,
+        "context_recall": 0.5613,
+        "cost_usd": 0.0287,
+        "citation_accuracy": 0.6913
+      },
+      "utility": 0.6385,
+      "feasible": false,
+      "constraint_violations": {
+        "noise_sensitivity_max": 0.0077
+      },
+      "feasibility_penalty": 0.0077,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/6f88d54f98_manual.yaml",
+        "Simulated objective scores: {'noise_sensitivity': 0.1877, 'hallucination': 0.1077, 'context_precision': 0.6163, 'latency_ms': 0.3087, 'answer_correctness': 0.6563, 'context_recall': 0.5613, 'cost_usd': 0.0287, 'citation_accuracy': 0.6913}",
+        "Constraint violations: {'noise_sensitivity_max': 0.0077}"
+      ],
+      "started_at": "2026-04-16T00:53:20.700206+00:00",
+      "completed_at": "2026-04-16T00:53:20.702839+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "b1debc6f64",
+      "experiment_name": "corpus-chunking-search",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "parser": "unstructured",
+        "document_structure": "flat_chunks",
+        "chunk_size": 384,
+        "chunk_overlap": 128,
+        "table_strategy": "repeat_headers"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/b1debc6f64_manual.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "noise_sensitivity": 0.193,
+        "hallucination": 0.113,
+        "context_precision": 0.611,
+        "latency_ms": 0.314,
+        "answer_correctness": 0.651,
+        "context_recall": 0.556,
+        "cost_usd": 0.034,
+        "citation_accuracy": 0.686
+      },
+      "utility": 0.6279,
+      "feasible": false,
+      "constraint_violations": {
+        "noise_sensitivity_max": 0.013
+      },
+      "feasibility_penalty": 0.013,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/b1debc6f64_manual.yaml",
+        "Simulated objective scores: {'noise_sensitivity': 0.193, 'hallucination': 0.113, 'context_precision': 0.611, 'latency_ms': 0.314, 'answer_correctness': 0.651, 'context_recall': 0.556, 'cost_usd': 0.034, 'citation_accuracy': 0.686}",
+        "Constraint violations: {'noise_sensitivity_max': 0.013}"
+      ],
+      "started_at": "2026-04-16T00:53:20.703736+00:00",
+      "completed_at": "2026-04-16T00:53:20.706501+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "46678e8b7f",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retriever": "bm25",
+        "embedding_model": "bge-m3",
+        "reranker": "none",
+        "top_k": 6,
+        "query_rewrite": "none",
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/46678e8b7f_autorag.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "noise_sensitivity": 0.1586,
+        "hallucination": 0.1086,
+        "context_precision": 0.6164,
+        "latency_ms": 0.2686,
+        "answer_correctness": 0.6914,
+        "context_recall": 0.5914,
+        "cost_usd": 0.0,
+        "citation_accuracy": 0.6864
+      },
+      "utility": 0.667,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/46678e8b7f_autorag.yaml",
+        "Simulated objective scores: {'noise_sensitivity': 0.1586, 'hallucination': 0.1086, 'context_precision': 0.6164, 'latency_ms': 0.2686, 'answer_correctness': 0.6914, 'context_recall': 0.5914, 'cost_usd': 0.0, 'citation_accuracy': 0.6864}"
+      ],
+      "started_at": "2026-04-16T00:53:20.715944+00:00",
+      "completed_at": "2026-04-16T00:53:20.719933+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "e4de0531f8",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retriever": "bm25",
+        "embedding_model": "bge-m3",
+        "reranker": "bge-reranker",
+        "top_k": 10,
+        "query_rewrite": "none",
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/e4de0531f8_autorag.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "noise_sensitivity": 0.1695,
+        "hallucination": 0.0895,
+        "context_precision": 0.6355,
+        "latency_ms": 0.3195,
+        "answer_correctness": 0.6605,
+        "context_recall": 0.5605,
+        "cost_usd": 0.0345,
+        "citation_accuracy": 0.7055
+      },
+      "utility": 0.6517,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/e4de0531f8_autorag.yaml",
+        "Simulated objective scores: {'noise_sensitivity': 0.1695, 'hallucination': 0.0895, 'context_precision': 0.6355, 'latency_ms': 0.3195, 'answer_correctness': 0.6605, 'context_recall': 0.5605, 'cost_usd': 0.0345, 'citation_accuracy': 0.7055}"
+      ],
+      "started_at": "2026-04-16T00:53:20.720845+00:00",
+      "completed_at": "2026-04-16T00:53:20.724625+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "1c75b26e89",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retriever": "vector",
+        "embedding_model": "e5-large-v2",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "query_rewrite": "none",
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/1c75b26e89_autorag.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "noise_sensitivity": 0.1516,
+        "hallucination": 0.0716,
+        "context_precision": 0.6534,
+        "latency_ms": 0.3016,
+        "answer_correctness": 0.6984,
+        "context_recall": 0.5984,
+        "cost_usd": 0.0166,
+        "citation_accuracy": 0.7234
+      },
+      "utility": 0.6796,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/1c75b26e89_autorag.yaml",
+        "Simulated objective scores: {'noise_sensitivity': 0.1516, 'hallucination': 0.0716, 'context_precision': 0.6534, 'latency_ms': 0.3016, 'answer_correctness': 0.6984, 'context_recall': 0.5984, 'cost_usd': 0.0166, 'citation_accuracy': 0.7234}"
+      ],
+      "started_at": "2026-04-16T00:53:20.725636+00:00",
+      "completed_at": "2026-04-16T00:53:20.729396+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "16861791de",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "retriever": "hybrid",
+        "embedding_model": "e5-large-v2",
+        "reranker": "cross-encoder",
+        "top_k": 10,
+        "query_rewrite": "multi_query",
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/16861791de_autorag.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "noise_sensitivity": 0.1501,
+        "hallucination": 0.0701,
+        "context_precision": 0.6549,
+        "latency_ms": 0.3001,
+        "answer_correctness": 0.6999,
+        "context_recall": 0.5999,
+        "cost_usd": 0.0151,
+        "citation_accuracy": 0.7249
+      },
+      "utility": 0.6811,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/16861791de_autorag.yaml",
+        "Simulated objective scores: {'noise_sensitivity': 0.1501, 'hallucination': 0.0701, 'context_precision': 0.6549, 'latency_ms': 0.3001, 'answer_correctness': 0.6999, 'context_recall': 0.5999, 'cost_usd': 0.0151, 'citation_accuracy': 0.7249}"
+      ],
+      "started_at": "2026-04-16T00:53:20.730498+00:00",
+      "completed_at": "2026-04-16T00:53:20.734496+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "bff74d2cfe",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 2,
+        "verifier": "claim_checker"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/bff74d2cfe_dspy.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "response_relevancy": 0.7982,
+        "hallucination": 0.0518,
+        "faithfulness": 0.8082,
+        "noise_sensitivity": 0.1318,
+        "latency_ms": 0.2818,
+        "answer_correctness": 0.6982,
+        "cost_usd": 0.0018,
+        "citation_accuracy": 0.7282
+      },
+      "utility": 0.8032,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/bff74d2cfe_dspy.yaml",
+        "Simulated objective scores: {'response_relevancy': 0.7982, 'hallucination': 0.0518, 'faithfulness': 0.8082, 'noise_sensitivity': 0.1318, 'latency_ms': 0.2818, 'answer_correctness': 0.6982, 'cost_usd': 0.0018, 'citation_accuracy': 0.7282}"
+      ],
+      "started_at": "2026-04-16T00:53:20.737326+00:00",
+      "completed_at": "2026-04-16T00:53:20.751950+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "96c031f7de",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.2,
+        "max_citations": 2,
+        "verifier": "claim_checker"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/96c031f7de_dspy.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "response_relevancy": 0.8084,
+        "hallucination": 0.0416,
+        "faithfulness": 0.8034,
+        "noise_sensitivity": 0.1216,
+        "latency_ms": 0.2716,
+        "answer_correctness": 0.6934,
+        "cost_usd": 0.0,
+        "citation_accuracy": 0.7234
+      },
+      "utility": 0.8031,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/96c031f7de_dspy.yaml",
+        "Simulated objective scores: {'response_relevancy': 0.8084, 'hallucination': 0.0416, 'faithfulness': 0.8034, 'noise_sensitivity': 0.1216, 'latency_ms': 0.2716, 'answer_correctness': 0.6934, 'cost_usd': 0.0, 'citation_accuracy': 0.7234}"
+      ],
+      "started_at": "2026-04-16T00:53:20.753132+00:00",
+      "completed_at": "2026-04-16T00:53:20.756586+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "d90f0571c1",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 4,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 2,
+        "verifier": "claim_checker"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/d90f0571c1_dspy.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "response_relevancy": 0.8178,
+        "hallucination": 0.0472,
+        "faithfulness": 0.8128,
+        "noise_sensitivity": 0.1272,
+        "latency_ms": 0.2772,
+        "answer_correctness": 0.7028,
+        "cost_usd": 0.0272,
+        "citation_accuracy": 0.7328
+      },
+      "utility": 0.8078,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/d90f0571c1_dspy.yaml",
+        "Simulated objective scores: {'response_relevancy': 0.8178, 'hallucination': 0.0472, 'faithfulness': 0.8128, 'noise_sensitivity': 0.1272, 'latency_ms': 0.2772, 'answer_correctness': 0.7028, 'cost_usd': 0.0272, 'citation_accuracy': 0.7328}"
+      ],
+      "started_at": "2026-04-16T00:53:20.758020+00:00",
+      "completed_at": "2026-04-16T00:53:20.764417+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "409420248a",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 6,
+        "prompt_style": "citation_first",
+        "temperature": 0.2,
+        "max_citations": 3,
+        "verifier": "claim_checker"
+      },
+      "config_path": ".ragdx_demo/optimization/ae853b59ac90/configs/409420248a_dspy.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {
+        "response_relevancy": 0.8084,
+        "hallucination": 0.0266,
+        "faithfulness": 0.8234,
+        "noise_sensitivity": 0.1066,
+        "latency_ms": 0.2716,
+        "answer_correctness": 0.7134,
+        "cost_usd": 0.0216,
+        "citation_accuracy": 0.7434
+      },
+      "utility": 0.816,
+      "feasible": true,
+      "constraint_violations": {},
+      "feasibility_penalty": 0.0,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx_demo/optimization/ae853b59ac90/configs/409420248a_dspy.yaml",
+        "Simulated objective scores: {'response_relevancy': 0.8084, 'hallucination': 0.0266, 'faithfulness': 0.8234, 'noise_sensitivity': 0.1066, 'latency_ms': 0.2716, 'answer_correctness': 0.7134, 'cost_usd': 0.0216, 'citation_accuracy': 0.7434}"
+      ],
+      "started_at": "2026-04-16T00:53:20.766447+00:00",
+      "completed_at": "2026-04-16T00:53:20.771717+00:00",
+      "notes": ""
+    }
+  ],
+  "best_trial_id": "409420248a",
+  "pareto_front_ids": [
+    "46678e8b7f",
+    "16861791de",
+    "bff74d2cfe",
+    "96c031f7de",
+    "d90f0571c1",
+    "409420248a"
+  ],
+  "feasible_pareto_front_ids": [
+    "46678e8b7f",
+    "16861791de",
+    "bff74d2cfe",
+    "96c031f7de",
+    "d90f0571c1",
+    "409420248a"
+  ],
+  "hypervolume": 0.673277,
+  "feasible_hypervolume": 0.673277,
+  "notes": ""
+}

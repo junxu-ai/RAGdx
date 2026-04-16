@@ -1,0 +1,42 @@
+framework: dspy
+optimizer: MIPROv2
+objective_metric: answer_correctness
+objectives:
+  faithfulness: 0.28
+  response_relevancy: 0.16
+  answer_correctness: 0.22
+  citation_accuracy: 0.14
+  hallucination: 0.12
+  cost_usd: 0.08
+program_contract:
+  input_fields:
+  - question
+  - contexts
+  output_fields:
+  - answer
+  - citations
+  expected_tunable_parts:
+  - instructions
+  - fewshot_demos
+  - citation_formatting
+  - decomposition
+search_parameters:
+  optimizer: MIPROv2
+  fewshot_count: 0
+  prompt_style: grounded_qa
+  temperature: 0.0
+  max_citations: 2
+  verifier: claim_checker
+compile_hints:
+  bayesian_optimizer: true
+  fewshot_enabled: false
+  decomposition: false
+constraints:
+  hallucination_max: 0.12
+  noise_sensitivity_max: 0.18
+  latency_ms_max: 6500.0
+  cost_usd_max: 0.04
+optimization_metadata:
+  stage: generation
+  search_strategy: bayesian
+  max_trials: 4

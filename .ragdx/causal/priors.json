@@ -1,0 +1,10 @@
+{
+  "corpus_chunking_defect": 0.903,
+  "grounding_defect": 0.8923,
+  "retrieval_recall_defect": 0.7544,
+  "retrieval_precision_defect": 0.6228,
+  "citation_binding_defect": 0.3456,
+  "distribution_shift": 0.3184,
+  "context_packing_defect": 0.2321,
+  "judge_or_metric_instability": 0.1364
+}

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 from uuid import uuid4
 
-from ragdx.schemas.models import DiagnosisReport, EvaluationResult, OptimizationPlan, OptimizationSession, SavedRun
+from ragdx.schemas.models import DiagnosisReport, EvaluationResult, FeedbackEvent, OptimizationPlan, OptimizationSession, SavedRun
 
 
 class RunStore:
@@ -13,14 +14,21 @@ class RunStore:
         self.root = Path(root)
         self.runs_dir = self.root / "runs"
         self.sessions_dir = self.root / "optimization" / "sessions"
+        self.feedback_dir = self.root / "feedback"
+        self.causal_dir = self.root / "causal"
         self.runs_dir.mkdir(parents=True, exist_ok=True)
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
+        self.feedback_dir.mkdir(parents=True, exist_ok=True)
+        self.causal_dir.mkdir(parents=True, exist_ok=True)
 
     def _run_path(self, run_id: str) -> Path:
         return self.runs_dir / f"{run_id}.json"
 
     def _session_path(self, session_id: str) -> Path:
         return self.sessions_dir / f"{session_id}.json"
+
+    def _feedback_path(self, feedback_id: str) -> Path:
+        return self.feedback_dir / f"{feedback_id}.json"
 
     def save_run(
         self,
@@ -55,6 +63,14 @@ class RunStore:
         self._run_path(run_id).write_text(run.model_dump_json(indent=2), encoding="utf-8")
         return run
 
+    def attach_feedback_to_run(self, run_id: str, feedback_events: list[FeedbackEvent]) -> SavedRun:
+        run = self.load_run(run_id)
+        run.evaluation.feedback_events.extend(feedback_events)
+        self._run_path(run_id).write_text(run.model_dump_json(indent=2), encoding="utf-8")
+        for event in feedback_events:
+            self._feedback_path(event.feedback_id).write_text(event.model_dump_json(indent=2), encoding="utf-8")
+        return run
+
     def load_run(self, run_id: str) -> SavedRun:
         return SavedRun.model_validate_json(self._run_path(run_id).read_text(encoding="utf-8"))
 
@@ -84,7 +100,6 @@ class RunStore:
     def session_exists(self, session_id: str) -> bool:
         return self._session_path(session_id).exists()
 
-
     def list_sessions(self) -> List[OptimizationSession]:
         sessions = []
         for path in sorted(self.sessions_dir.glob("*.json"), reverse=True):
@@ -97,6 +112,62 @@ class RunStore:
     def latest_session(self) -> OptimizationSession | None:
         sessions = self.list_sessions()
         return sessions[0] if sessions else None
+
+    def list_feedback(self) -> List[FeedbackEvent]:
+        items: List[FeedbackEvent] = []
+        for path in sorted(self.feedback_dir.glob("*.json"), reverse=True):
+            try:
+                items.append(FeedbackEvent.model_validate_json(path.read_text(encoding="utf-8")))
+            except Exception:
+                continue
+        return items
+
+    def feedback_summary(self) -> dict[str, float]:
+        items = self.list_feedback()
+        if not items:
+            return {"total_feedback": 0.0}
+        total = len(items)
+        negative = sum(1 for x in items if x.kind in {"thumbs_down", "user_correction", "escalation", "hallucination", "policy"})
+        return {
+            "total_feedback": float(total),
+            "negative_feedback_rate": round(negative / total, 4),
+            "avg_rating": round(sum(x.rating for x in items if x.rating is not None) / max(1, sum(1 for x in items if x.rating is not None)), 4),
+        }
+
+
+    def _causal_priors_path(self) -> Path:
+        return self.causal_dir / "priors.json"
+
+    def load_causal_priors(self, defaults: dict[str, float]) -> dict[str, float]:
+        path = self._causal_priors_path()
+        if not path.exists():
+            return dict(defaults)
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            merged = dict(defaults)
+            merged.update({k: float(v) for k, v in payload.items() if k in defaults})
+            return merged
+        except Exception:
+            return dict(defaults)
+
+    def save_causal_priors(self, priors: dict[str, float]) -> dict[str, float]:
+        path = self._causal_priors_path()
+        path.write_text(json.dumps(priors, indent=2), encoding="utf-8")
+        return priors
+
+    def update_causal_priors_from_report(self, diagnosis: DiagnosisReport, feedback_events: list[FeedbackEvent] | None = None, learning_rate: float = 0.15) -> dict[str, float]:
+        priors = self.load_causal_priors({s.node: s.prior for s in diagnosis.causal_signals} or {})
+        severity_bonus = 0.0
+        feedback_events = feedback_events or []
+        if feedback_events:
+            severe = sum(1 for e in feedback_events if e.kind in {"hallucination", "policy", "escalation", "user_correction"})
+            severity_bonus = min(0.08, 0.02 * severe)
+        for signal in diagnosis.causal_signals:
+            old = priors.get(signal.node, signal.prior)
+            target = min(0.98, max(0.01, signal.posterior + severity_bonus if signal.posterior >= signal.prior else signal.posterior))
+            priors[signal.node] = round((1 - learning_rate) * old + learning_rate * target, 4)
+        self.save_causal_priors(priors)
+        return priors
 
     def export_markdown(self, run_id: str, output_path: str | Path) -> Path:
         run = self.load_run(run_id)
@@ -112,6 +183,10 @@ class RunStore:
             "## Summary",
             run.diagnosis.summary,
             "",
+            f"- Diagnosis confidence: {run.diagnosis.diagnosis_confidence:.2f}",
+            f"- Feedback events attached: {len(run.evaluation.feedback_events)}",
+            f"- Query traces attached: {len(run.evaluation.traces)}",
+            "",
             "## Retrieval metrics",
         ]
         for k, v in run.evaluation.retrieval.items():
@@ -122,12 +197,18 @@ class RunStore:
         lines.append("\n## End-to-end metrics")
         for k, v in run.evaluation.e2e.items():
             lines.append(f"- {k}: {v:.4f}")
+        lines.append("\n## Evaluator agreement")
+        for k, v in run.diagnosis.evaluator_agreement.items():
+            lines.append(f"- {k}: {v:.4f}")
         lines.append("\n## Hypotheses")
         for h in run.diagnosis.hypotheses:
             lines.append(f"- **{h.root_cause}** ({h.component}, severity={h.severity}, confidence={h.confidence:.2f})")
+        lines.append("\n## Causal signals")
+        for s in run.diagnosis.causal_signals[:5]:
+            lines.append(f"- **{s.node}** ({s.component}) posterior={s.posterior:.2f}, prior={s.prior:.2f}")
         lines.append("\n## Planned experiments")
         for e in run.optimization_plan.experiments:
-            lines.append(f"- **{e.name}** via `{e.tool}` targeting `{e.target_component}`: {e.description}")
+            lines.append(f"- **{e.name}** stage=`{e.stage}` via `{e.tool}` targeting `{e.target_component}`: {e.description}")
         if run.latest_session_id:
             try:
                 session = self.load_session(run.latest_session_id)

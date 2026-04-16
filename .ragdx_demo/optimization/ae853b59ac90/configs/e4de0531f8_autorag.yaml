@@ -1,0 +1,48 @@
+framework: autorag
+objective_metric: answer_correctness
+objectives:
+  context_recall: 0.3
+  context_precision: 0.25
+  answer_correctness: 0.2
+  citation_accuracy: 0.1
+  latency_ms: 0.08
+  cost_usd: 0.07
+yaml_template:
+  version: 1
+  optimization:
+    strategy: bayesian
+    trials: 4
+  node_lines:
+  - name: retrieval_line
+    nodes:
+    - kind: retrieval
+      name: bm25
+      params:
+        top_k: 10
+    - kind: reranker
+      name: bge-reranker
+      params:
+        enabled: true
+    - kind: chunking
+      name: semantic_chunker
+      params:
+        chunk_size: 512
+        chunk_overlap: 64
+  postprocess:
+    context_ordering: diverse_then_score
+search_parameters:
+  retriever: bm25
+  embedding_model: bge-m3
+  reranker: bge-reranker
+  top_k: 10
+  query_rewrite: none
+  context_ordering: diverse_then_score
+constraints:
+  hallucination_max: 0.12
+  noise_sensitivity_max: 0.18
+  latency_ms_max: 6500.0
+  cost_usd_max: 0.04
+optimization_metadata:
+  stage: retrieval
+  search_strategy: bayesian
+  max_trials: 4

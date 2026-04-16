@@ -6,6 +6,10 @@ from ragdx.schemas.models import (
     OptimizationExperiment,
     OptimizationPlan,
     ToolRunResult,
+    QueryTrace,
+    TraceSpan,
+    FeedbackEvent,
+    CausalSignal,
 )
 from ragdx.core.diagnosis import RAGDiagnosisEngine
 from ragdx.core.evaluator import UnifiedEvaluator
@@ -19,6 +23,10 @@ __all__ = [
     "OptimizationExperiment",
     "OptimizationPlan",
     "ToolRunResult",
+    "QueryTrace",
+    "TraceSpan",
+    "FeedbackEvent",
+    "CausalSignal",
     "RAGDiagnosisEngine",
     "UnifiedEvaluator",
     "OptimizationPlanner",
