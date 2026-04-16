@@ -18,6 +18,7 @@ from ragdx.optim.executor import OptimizationExecutor
 from ragdx.optim.planner import OptimizationPlanner
 from ragdx.schemas.models import EvaluationResult, FeedbackEvent
 from ragdx.storage.run_store import RunStore
+from ragdx.utils.reporting import summarize_plan
 
 app = typer.Typer(add_completion=False)
 
@@ -97,10 +98,22 @@ def plan(
     strategy: str = typer.Option("bayesian", help="Search strategy: bayesian or pareto_evolutionary."),
     budget: int = typer.Option(12, help="Trial budget to distribute across experiments."),
     use_llm_planner: bool = typer.Option(False, help="Use an LLM to refine the optimization plan after heuristic planning."),
+    human_readable: bool = typer.Option(False, "--human-readable", help="Print a human-readable baseline-relative explanation of the generated plan."),
 ):
     result = _load_eval(eval_json)
     report, plan = _diagnose_and_plan(result, strategy=strategy, budget=budget, use_llm_planner=use_llm_planner)
-    print(plan.model_dump_json(indent=2))
+    if human_readable:
+        print(summarize_plan(plan.model_dump()))
+    else:
+        print(plan.model_dump_json(indent=2))
+
+
+
+
+@app.command("explain-plan")
+def explain_plan(plan_json: str):
+    payload = json.loads(Path(plan_json).read_text(encoding="utf-8"))
+    print(summarize_plan(payload))
 
 
 @app.command()

@@ -12,6 +12,7 @@ from ragdx.core.diagnosis import RAGDiagnosisEngine
 from ragdx.optim.planner import OptimizationPlanner
 from ragdx.schemas.models import EvaluationResult, OptimizationSession
 from ragdx.storage.run_store import RunStore
+from ragdx.utils.reporting import summarize_target_spec
 
 
 DEMO_RESULT = EvaluationResult(
@@ -80,6 +81,37 @@ def _feedback_df(result: EvaluationResult) -> pd.DataFrame:
             "note": f.note,
             "created_at": f.created_at,
         })
+    return pd.DataFrame(rows)
+
+
+def _plan_metric_rows(exp) -> pd.DataFrame:
+    params = exp.parameters or {}
+    baseline_metrics = params.get("baseline_metrics", {})
+    target_specs = params.get("target_specs", {})
+    objective_weights = params.get("objective_weights", exp.objectives or {})
+    rows = []
+    metrics = list(dict.fromkeys(list(baseline_metrics.keys()) + list(target_specs.keys()) + list(objective_weights.keys())))
+    for metric in metrics:
+        spec = target_specs.get(metric, {})
+        rows.append({
+            "metric": metric,
+            "direction": spec.get("direction", "monitor"),
+            "mode": spec.get("mode", "target"),
+            "baseline": baseline_metrics.get(metric),
+            "target": spec.get("target_value"),
+            "delta": spec.get("delta_from_baseline"),
+            "weight": objective_weights.get(metric),
+            "summary": summarize_target_spec(metric, spec) if spec else metric,
+        })
+    return pd.DataFrame(rows)
+
+
+def _constraint_rows(exp) -> pd.DataFrame:
+    params = exp.parameters or {}
+    bounds = params.get("constraint_bounds", exp.constraints or {})
+    rows = []
+    for key, value in bounds.items():
+        rows.append({"constraint": key, "bound": value})
     return pd.DataFrame(rows)
 
 
@@ -174,17 +206,32 @@ def main() -> None:
         if not plan.experiments:
             st.info("No optimization experiment proposed at the current thresholds.")
         else:
+            st.caption("Objective weights are trade-off coefficients, not target metric values.")
             for exp in plan.experiments:
                 with st.expander(f"{exp.stage} | {exp.name} | {exp.tool} | {exp.search_strategy}", expanded=True):
                     st.write(exp.description)
                     st.write(f"**Depends on:** {', '.join(exp.depends_on) if exp.depends_on else 'none'}")
-                    st.write("**Objectives**")
-                    st.json(exp.objectives)
-                    st.write("**Constraints**")
-                    st.json(exp.constraints)
-                    st.write("**Search space**")
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Trial budget", exp.max_trials)
+                    c2.metric("Primary baseline", exp.baseline_score if exp.baseline_score is not None else float('nan'))
+                    c3.metric("Objectives", len(exp.objectives))
+                    metric_df = _plan_metric_rows(exp)
+                    if not metric_df.empty:
+                        st.subheader("Baseline-relative metric plan")
+                        st.dataframe(metric_df, use_container_width=True)
+                        if metric_df["baseline"].notna().any() and metric_df["target"].notna().any():
+                            plot_df = metric_df.dropna(subset=["baseline", "target"]).copy()
+                            plot_df = plot_df.melt(id_vars=["metric"], value_vars=["baseline", "target"], var_name="kind", value_name="value")
+                            fig = px.bar(plot_df, x="metric", y="value", color="kind", barmode="group", title="Baseline vs target")
+                            st.plotly_chart(fig, use_container_width=True)
+                    constraint_df = _constraint_rows(exp)
+                    if not constraint_df.empty:
+                        st.subheader("Constraint bounds")
+                        st.dataframe(constraint_df, use_container_width=True)
+                    st.subheader("Search space")
                     st.json(exp.search_space)
-                    st.write(f"**Trial budget:** {exp.max_trials}")
+                    if exp.notes:
+                        st.write(f"**Notes:** {exp.notes}")
 
     with tabs[3]:
         _ = st.button("Refresh sessions")

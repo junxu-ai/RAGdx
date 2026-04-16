@@ -6,6 +6,8 @@ plotly<7,>=5.22
 streamlit<2,>=1.35
 typer<1,>=0.12
 rich<15,>=13.7
+scikit-learn<2,>=1.5
+networkx<4,>=3.2
 
 [all]
 ragas<0.4,>=0.3
@@ -13,12 +15,32 @@ ragchecker<0.2,>=0.1
 dspy<4,>=2.5.6
 AutoRAG<0.4,>=0.3
 openai<2,>=1.30
+langchain<2,>=0.3
+langchain-core<2,>=0.3
+langchain-community<1,>=0.3
+llama-index-core<1,>=0.12
+ax-platform<2,>=1.1
+botorch<1,>=0.17
+torch<3,>=2.2
 
 [autorag]
 AutoRAG<0.4,>=0.3
 
+[bo]
+ax-platform<2,>=1.1
+botorch<1,>=0.17
+torch<3,>=2.2
+
 [dspy]
 dspy<4,>=2.5.6
+
+[langchain]
+langchain<2,>=0.3
+langchain-core<2,>=0.3
+langchain-community<1,>=0.3
+
+[llamaindex]
+llama-index-core<1,>=0.12
 
 [openai]
 openai<2,>=1.30

@@ -24,6 +24,10 @@ src/ragdx/engines/root_cause.py
 src/ragdx/optim/__init__.py
 src/ragdx/optim/autorag_adapter.py
 src/ragdx/optim/dspy_adapter.py
+src/ragdx/optim/executor.py
+src/ragdx/optim/heavy_bo.py
+src/ragdx/optim/langchain_adapter.py
+src/ragdx/optim/llamaindex_adapter.py
 src/ragdx/optim/planner.py
 src/ragdx/schemas/__init__.py
 src/ragdx/schemas/models.py
@@ -35,3 +39,10 @@ src/ragdx/utils/__init__.py
 src/ragdx/utils/reporting.py
 tests/test_compare_and_store.py
 tests/test_diagnosis.py
+tests/test_feedback_and_causal.py
+tests/test_full_version_features.py
+tests/test_llm_diagnosis.py
+tests/test_llm_planner.py
+tests/test_optimization_session.py
+tests/test_plan_format.py
+tests/test_runtime_and_bo.py
