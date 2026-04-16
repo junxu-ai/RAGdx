@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Callable, Dict
 
 from ragdx.schemas.models import DiagnosisReport, EvaluationResult
@@ -91,6 +92,42 @@ class LLMDiagnosisExplainer:
                 return json.loads(text[start : end + 1])
             raise
 
+    @staticmethod
+    def _normalize_component(component: str) -> str:
+        if not isinstance(component, str):
+            return component
+        normalized = component.strip().lower()
+        if normalized in {"retrieval", "generation", "e2e", "pipeline"}:
+            return normalized
+
+        if "retrieval" in normalized:
+            return "retrieval"
+        if "generation" in normalized:
+            return "generation"
+        if "pipeline" in normalized or "observability" in normalized or "orchestr" in normalized:
+            return "pipeline"
+        if "e2e" in normalized or "end-to-end" in normalized or "end to end" in normalized or "citation" in normalized:
+            return "e2e"
+
+        parts = re.split(r"[\/,|]+", normalized)
+        for part in parts:
+            part = part.strip()
+            if part in {"retrieval", "generation", "e2e", "pipeline"}:
+                return part
+
+        return normalized
+
+    def _normalize_report_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(data, dict):
+            return data
+
+        hypotheses = data.get("hypotheses")
+        if isinstance(hypotheses, list):
+            for hyp in hypotheses:
+                if isinstance(hyp, dict) and "component" in hyp:
+                    hyp["component"] = self._normalize_component(hyp["component"])
+        return data
+
     def explain(self, result: EvaluationResult, base_report: DiagnosisReport) -> DiagnosisReport:
         payload = {
             "thresholds": base_report.expected_thresholds,
@@ -104,6 +141,7 @@ class LLMDiagnosisExplainer:
         }
         prompt = f"{self.prompt_template}\n\nINPUT:\n{json.dumps(payload, indent=2)}"
         data = self._coerce_json(self.llm_callable(prompt))
+        data = self._normalize_report_data(data)
         return DiagnosisReport(**data)
 
     def summarize_both(
@@ -124,4 +162,5 @@ class LLMDiagnosisExplainer:
         }
         prompt = f"{self.summary_prompt_template}\n\nINPUT:\n{json.dumps(payload, indent=2)}"
         data = self._coerce_json(self.llm_callable(prompt))
+        data = self._normalize_report_data(data)
         return DiagnosisReport(**data)

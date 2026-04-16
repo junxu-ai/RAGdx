@@ -8,7 +8,7 @@ LayerName = Literal["retrieval", "generation", "e2e", "pipeline"]
 Severity = Literal["low", "medium", "high", "critical"]
 ToolName = Literal["ragas", "ragchecker", "dspy", "autorag", "manual"]
 SearchStrategy = Literal["bayesian", "pareto_evolutionary"]
-ExecutionMode = Literal["simulate", "prepare_only"]
+ExecutionMode = Literal["simulate", "prepare_only", "execute"]
 TrialStatus = Literal["planned", "running", "done", "failed", "prepared"]
 SessionStatus = Literal["planned", "running", "completed", "failed", "prepared"]
 
@@ -101,6 +101,10 @@ class OptimizationTrial(BaseModel):
     status: TrialStatus = "planned"
     parameters: Dict[str, Any] = Field(default_factory=dict)
     config_path: Optional[str] = None
+    output_path: Optional[str] = None
+    log_path: Optional[str] = None
+    runner_command: Optional[str] = None
+    return_code: Optional[int] = None
     objective_scores: Dict[str, float] = Field(default_factory=dict)
     utility: Optional[float] = None
     pareto_dominance_count: int = 0

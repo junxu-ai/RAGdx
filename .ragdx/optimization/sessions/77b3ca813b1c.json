@@ -1,0 +1,581 @@
+{
+  "session_id": "77b3ca813b1c",
+  "created_at": "2026-04-15T21:25:40.302751+00:00",
+  "run_id": "8ff1b5ff472b",
+  "strategy": "bayesian",
+  "mode": "execute",
+  "status": "completed",
+  "plan": {
+    "objective_metric": "answer_correctness",
+    "experiments": [
+      {
+        "name": "retrieval-pipeline-search",
+        "tool": "autorag",
+        "target_component": "retrieval",
+        "description": "Optimize retrieval, reranking, and context packing for better evidence quality.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "context_recall": 0.35,
+          "context_precision": 0.25,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.15
+        },
+        "search_space": {
+          "chunk_size": [
+            256,
+            384,
+            512,
+            768,
+            1024
+          ],
+          "chunk_overlap": [
+            32,
+            64,
+            96,
+            128
+          ],
+          "retriever": [
+            "bm25",
+            "vector",
+            "hybrid"
+          ],
+          "reranker": [
+            "none",
+            "bge-reranker",
+            "cross-encoder"
+          ],
+          "top_k": [
+            4,
+            6,
+            8,
+            10
+          ],
+          "context_ordering": [
+            "retrieval_score",
+            "section_then_score",
+            "diverse_then_score"
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "AutoRAG-style search space generated from retrieval diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "generator-prompt-optimization",
+        "tool": "dspy",
+        "target_component": "generation",
+        "description": "Optimize grounded answer synthesis and citation behavior.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "faithfulness": 0.35,
+          "response_relevancy": 0.2,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.2
+        },
+        "search_space": {
+          "optimizer": [
+            "MIPROv2",
+            "BootstrapFewShot",
+            "GEPA"
+          ],
+          "fewshot_count": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "prompt_style": [
+            "grounded_qa",
+            "claim_then_evidence",
+            "citation_first"
+          ],
+          "temperature": [
+            0.0,
+            0.2,
+            0.4
+          ],
+          "max_citations": [
+            1,
+            2,
+            3
+          ],
+          "decomposition": [
+            false,
+            true
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "DSPy optimization surface generated from generation diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "joint-pipeline-optimization",
+        "tool": "manual",
+        "target_component": "pipeline",
+        "description": "Run multi-objective search over retrieval/generation operating profiles when component-level root cause is mixed.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "answer_correctness": 0.45,
+          "citation_accuracy": 0.2,
+          "faithfulness": 0.2,
+          "context_recall": 0.15
+        },
+        "search_space": {
+          "retrieval_profile": [
+            "recall_heavy",
+            "balanced",
+            "precision_heavy"
+          ],
+          "generator_profile": [
+            "grounded_qa",
+            "citation_first"
+          ],
+          "verifier": [
+            "none",
+            "claim_checker"
+          ],
+          "context_budget": [
+            3000,
+            4500,
+            6000
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "done",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "Joint search is used when the pipeline bottleneck is mixed or inconclusive.",
+        "config_artifacts": []
+      }
+    ],
+    "rationale": [
+      "Retrieval-focused search was selected because the diagnosis indicates evidence miss or ranking noise.",
+      "Generator-side optimization was selected because the diagnosis indicates grounding, citation, or response formation issues.",
+      "A joint search was added to resolve mixed retrieval and generation failures with direct end-to-end tradeoff tracking."
+    ]
+  },
+  "total_trials": 12,
+  "completed_trials": 12,
+  "current_experiment": null,
+  "trials": [
+    {
+      "trial_id": "5452aa787b",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 512,
+        "chunk_overlap": 128,
+        "retriever": "vector",
+        "reranker": "bge-reranker",
+        "top_k": 8,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/5452aa787b_autorag.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/5452aa787b_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/5452aa787b.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/5452aa787b_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/5452aa787b_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.7586,
+        "citation_accuracy": 0.7655
+      },
+      "utility": 0.3045,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/5452aa787b_autorag.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/5452aa787b_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/5452aa787b_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/5452aa787b_metrics.json: {'answer_correctness': 0.7586, 'citation_accuracy': 0.7655}"
+      ],
+      "started_at": "2026-04-15T21:25:40.305528+00:00",
+      "completed_at": "2026-04-15T21:25:41.531096+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "48530b0140",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 384,
+        "chunk_overlap": 64,
+        "retriever": "hybrid",
+        "reranker": "cross-encoder",
+        "top_k": 10,
+        "context_ordering": "retrieval_score"
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/48530b0140_autorag.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/48530b0140_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/48530b0140.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/48530b0140_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/48530b0140_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.7493,
+        "citation_accuracy": 0.7577
+      },
+      "utility": 0.301,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/48530b0140_autorag.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/48530b0140_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/48530b0140_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/48530b0140_metrics.json: {'answer_correctness': 0.7493, 'citation_accuracy': 0.7577}"
+      ],
+      "started_at": "2026-04-15T21:25:41.531760+00:00",
+      "completed_at": "2026-04-15T21:25:42.760885+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "4f4a3381d8",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 384,
+        "chunk_overlap": 96,
+        "retriever": "vector",
+        "reranker": "cross-encoder",
+        "top_k": 4,
+        "context_ordering": "section_then_score"
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/4f4a3381d8_autorag.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/4f4a3381d8_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/4f4a3381d8.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/4f4a3381d8_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/4f4a3381d8_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.7558,
+        "citation_accuracy": 0.7631
+      },
+      "utility": 0.3034,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/4f4a3381d8_autorag.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/4f4a3381d8_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/4f4a3381d8_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/4f4a3381d8_metrics.json: {'answer_correctness': 0.7558, 'citation_accuracy': 0.7631}"
+      ],
+      "started_at": "2026-04-15T21:25:42.761833+00:00",
+      "completed_at": "2026-04-15T21:25:43.928640+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "74b06c50fa",
+      "experiment_name": "retrieval-pipeline-search",
+      "tool": "autorag",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "chunk_size": 1024,
+        "chunk_overlap": 128,
+        "retriever": "bm25",
+        "reranker": "none",
+        "top_k": 4,
+        "context_ordering": "diverse_then_score"
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/74b06c50fa_autorag.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/74b06c50fa_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/74b06c50fa.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/74b06c50fa_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/74b06c50fa_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.777,
+        "citation_accuracy": 0.7809
+      },
+      "utility": 0.3114,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/74b06c50fa_autorag.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/74b06c50fa_autorag.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/74b06c50fa_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/74b06c50fa_metrics.json: {'answer_correctness': 0.777, 'citation_accuracy': 0.7809}"
+      ],
+      "started_at": "2026-04-15T21:25:43.934866+00:00",
+      "completed_at": "2026-04-15T21:25:45.171828+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "f0b7d52e24",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 2,
+        "decomposition": true
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/f0b7d52e24_dspy.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/f0b7d52e24_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/f0b7d52e24.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/f0b7d52e24_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/f0b7d52e24_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.7171,
+        "citation_accuracy": 0.7309
+      },
+      "utility": 0.3255,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/f0b7d52e24_dspy.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/f0b7d52e24_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/f0b7d52e24_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/f0b7d52e24_metrics.json: {'answer_correctness': 0.7171, 'citation_accuracy': 0.7309}"
+      ],
+      "started_at": "2026-04-15T21:25:45.173324+00:00",
+      "completed_at": "2026-04-15T21:25:46.303989+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "0369805208",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "MIPROv2",
+        "fewshot_count": 4,
+        "prompt_style": "citation_first",
+        "temperature": 0.0,
+        "max_citations": 3,
+        "decomposition": false
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/0369805208_dspy.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/0369805208_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/0369805208.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/0369805208_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/0369805208_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.7014,
+        "citation_accuracy": 0.7178
+      },
+      "utility": 0.3189,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/0369805208_dspy.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/0369805208_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/0369805208_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/0369805208_metrics.json: {'answer_correctness': 0.7014, 'citation_accuracy': 0.7178}"
+      ],
+      "started_at": "2026-04-15T21:25:46.304853+00:00",
+      "completed_at": "2026-04-15T21:25:47.484886+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "1835e40702",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 4,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.0,
+        "max_citations": 1,
+        "decomposition": false
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/1835e40702_dspy.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/1835e40702_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/1835e40702.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/1835e40702_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/1835e40702_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.7878,
+        "citation_accuracy": 0.7898
+      },
+      "utility": 0.3549,
+      "pareto_dominance_count": 0,
+      "pareto_front": true,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/1835e40702_dspy.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/1835e40702_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/1835e40702_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/1835e40702_metrics.json: {'answer_correctness': 0.7878, 'citation_accuracy': 0.7898}"
+      ],
+      "started_at": "2026-04-15T21:25:47.485555+00:00",
+      "completed_at": "2026-04-15T21:25:48.704553+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "fed0d70c91",
+      "experiment_name": "generator-prompt-optimization",
+      "tool": "dspy",
+      "strategy": "bayesian",
+      "status": "done",
+      "parameters": {
+        "optimizer": "GEPA",
+        "fewshot_count": 0,
+        "prompt_style": "grounded_qa",
+        "temperature": 0.2,
+        "max_citations": 3,
+        "decomposition": false
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/fed0d70c91_dspy.yaml",
+      "output_path": ".ragdx/optimization/77b3ca813b1c/outputs/fed0d70c91_metrics.json",
+      "log_path": ".ragdx/optimization/77b3ca813b1c/outputs/fed0d70c91.log",
+      "runner_command": "python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/fed0d70c91_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/fed0d70c91_metrics.json",
+      "return_code": 0,
+      "objective_scores": {
+        "answer_correctness": 0.7391,
+        "citation_accuracy": 0.7493
+      },
+      "utility": 0.3346,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/fed0d70c91_dspy.yaml",
+        "Launching external runner: python examples/run_external_trial_example.py --config .ragdx/optimization/77b3ca813b1c/configs/fed0d70c91_dspy.yaml --output .ragdx/optimization/77b3ca813b1c/outputs/fed0d70c91_metrics.json",
+        "Loaded objective scores from .ragdx/optimization/77b3ca813b1c/outputs/fed0d70c91_metrics.json: {'answer_correctness': 0.7391, 'citation_accuracy': 0.7493}"
+      ],
+      "started_at": "2026-04-15T21:25:48.705460+00:00",
+      "completed_at": "2026-04-15T21:25:49.984857+00:00",
+      "notes": ""
+    },
+    {
+      "trial_id": "28b0520fe4",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "failed",
+      "parameters": {
+        "retrieval_profile": "precision_heavy",
+        "generator_profile": "citation_first",
+        "verifier": "none",
+        "context_budget": 4500
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/28b0520fe4_manual.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/28b0520fe4_manual.yaml",
+        "No runner template configured for tool=manual. Set the corresponding RAGDX_*_RUNNER_CMD environment variable."
+      ],
+      "started_at": "2026-04-15T21:25:49.985811+00:00",
+      "completed_at": "2026-04-15T21:25:49.987019+00:00",
+      "notes": "Missing runner command template."
+    },
+    {
+      "trial_id": "46e5756700",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "failed",
+      "parameters": {
+        "retrieval_profile": "balanced",
+        "generator_profile": "citation_first",
+        "verifier": "claim_checker",
+        "context_budget": 6000
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/46e5756700_manual.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/46e5756700_manual.yaml",
+        "No runner template configured for tool=manual. Set the corresponding RAGDX_*_RUNNER_CMD environment variable."
+      ],
+      "started_at": "2026-04-15T21:25:49.987658+00:00",
+      "completed_at": "2026-04-15T21:25:49.988596+00:00",
+      "notes": "Missing runner command template."
+    },
+    {
+      "trial_id": "10141e78cb",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "failed",
+      "parameters": {
+        "retrieval_profile": "precision_heavy",
+        "generator_profile": "grounded_qa",
+        "verifier": "none",
+        "context_budget": 3000
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/10141e78cb_manual.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/10141e78cb_manual.yaml",
+        "No runner template configured for tool=manual. Set the corresponding RAGDX_*_RUNNER_CMD environment variable."
+      ],
+      "started_at": "2026-04-15T21:25:49.989117+00:00",
+      "completed_at": "2026-04-15T21:25:49.990054+00:00",
+      "notes": "Missing runner command template."
+    },
+    {
+      "trial_id": "9da93582ae",
+      "experiment_name": "joint-pipeline-optimization",
+      "tool": "manual",
+      "strategy": "bayesian",
+      "status": "failed",
+      "parameters": {
+        "retrieval_profile": "balanced",
+        "generator_profile": "grounded_qa",
+        "verifier": "none",
+        "context_budget": 3000
+      },
+      "config_path": ".ragdx/optimization/77b3ca813b1c/configs/9da93582ae_manual.yaml",
+      "output_path": null,
+      "log_path": null,
+      "runner_command": null,
+      "return_code": null,
+      "objective_scores": {},
+      "utility": null,
+      "pareto_dominance_count": 0,
+      "pareto_front": false,
+      "logs": [
+        "Configuration written to .ragdx/optimization/77b3ca813b1c/configs/9da93582ae_manual.yaml",
+        "No runner template configured for tool=manual. Set the corresponding RAGDX_*_RUNNER_CMD environment variable."
+      ],
+      "started_at": "2026-04-15T21:25:49.990601+00:00",
+      "completed_at": "2026-04-15T21:25:49.991604+00:00",
+      "notes": "Missing runner command template."
+    }
+  ],
+  "best_trial_id": "1835e40702",
+  "pareto_front_ids": [
+    "1835e40702"
+  ],
+  "notes": ""
+}

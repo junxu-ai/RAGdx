@@ -1,0 +1,289 @@
+{
+  "run_id": "6d595c196238",
+  "created_at": "2026-04-16T06:43:45.238564+00:00",
+  "name": "demo",
+  "tags": [],
+  "notes": "",
+  "baseline_run_id": null,
+  "latest_session_id": "61a48fdf64e1",
+  "evaluation": {
+    "retrieval": {
+      "context_precision": 0.63,
+      "context_recall": 0.57,
+      "context_entities_recall": 0.54,
+      "hit_rate_at_k": 0.64
+    },
+    "generation": {
+      "faithfulness": 0.79,
+      "response_relevancy": 0.82,
+      "noise_sensitivity": 0.31,
+      "context_utilization": 0.61,
+      "hallucination": 0.19
+    },
+    "e2e": {
+      "answer_correctness": 0.68,
+      "citation_accuracy": 0.71,
+      "user_success_rate": 0.69
+    },
+    "metadata": {
+      "dataset": "demo",
+      "notes": "retrieval recall and generator grounding are both weak"
+    },
+    "raw_tool_outputs": {}
+  },
+  "diagnosis": {
+    "summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+    "expected_thresholds": {
+      "context_precision": 0.8,
+      "context_recall": 0.8,
+      "context_entities_recall": 0.75,
+      "hit_rate_at_k": 0.85,
+      "faithfulness": 0.9,
+      "response_relevancy": 0.85,
+      "context_utilization": 0.75,
+      "noise_sensitivity": 0.2,
+      "hallucination": 0.1,
+      "answer_correctness": 0.85,
+      "answer_accuracy": 0.85,
+      "citation_accuracy": 0.85,
+      "user_success_rate": 0.85
+    },
+    "metric_gaps": {
+      "context_recall": 0.23,
+      "context_entities_recall": 0.21,
+      "hit_rate_at_k": 0.21,
+      "context_precision": 0.17,
+      "answer_correctness": 0.17,
+      "user_success_rate": 0.16,
+      "context_utilization": 0.14,
+      "citation_accuracy": 0.14,
+      "faithfulness": 0.11,
+      "noise_sensitivity": 0.11,
+      "hallucination": 0.09,
+      "response_relevancy": 0.03
+    },
+    "hypotheses": [
+      {
+        "component": "retrieval",
+        "root_cause": "retrieval noise or weak ranking quality",
+        "severity": "high",
+        "confidence": 0.84,
+        "evidence": [
+          "context_precision=0.63 is below target 0.80",
+          "Noisy contexts usually propagate to hallucination and citation failures."
+        ],
+        "recommended_actions": [
+          "Add or tune reranker.",
+          "Reduce top-k or separate recall stage from final evidence stage.",
+          "Use metadata or section-aware filters."
+        ]
+      },
+      {
+        "component": "generation",
+        "root_cause": "answer is fragile under distractors or unsupported reasoning",
+        "severity": "high",
+        "confidence": 0.81,
+        "evidence": [
+          "noise_sensitivity=0.31",
+          "hallucination=0.19",
+          "The generator likely overweights spurious or weakly relevant text."
+        ],
+        "recommended_actions": [
+          "Constrain the answer to quoted or cited evidence.",
+          "Use context packing with stronger ordering and section labels.",
+          "Add a verifier or claim-level grounding pass."
+        ]
+      },
+      {
+        "component": "e2e",
+        "root_cause": "citation mapping is weaker than answer generation",
+        "severity": "medium",
+        "confidence": 0.72,
+        "evidence": [
+          "citation_accuracy=0.71 is below target 0.85"
+        ],
+        "recommended_actions": [
+          "Enforce sentence-level citation formatting.",
+          "Return passage ids with the answer synthesis step."
+        ]
+      }
+    ],
+    "optimization_candidates": [
+      "autorag_pipeline_search",
+      "dspy_prompt_optimization",
+      "joint_ablation_eval"
+    ],
+    "priority_actions": [
+      "Improve ranking precision and evidence filtering.",
+      "Run ablations to separate noisy retrieval from generator overreach.",
+      "Add explicit citation scaffolding in the generation prompt or response schema."
+    ]
+  },
+  "optimization_plan": {
+    "objective_metric": "answer_correctness",
+    "experiments": [
+      {
+        "name": "retrieval-pipeline-search",
+        "tool": "autorag",
+        "target_component": "retrieval",
+        "description": "Optimize retrieval, reranking, and context packing for better evidence quality.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "context_recall": 0.35,
+          "context_precision": 0.25,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.15
+        },
+        "search_space": {
+          "chunk_size": [
+            256,
+            384,
+            512,
+            768,
+            1024
+          ],
+          "chunk_overlap": [
+            32,
+            64,
+            96,
+            128
+          ],
+          "retriever": [
+            "bm25",
+            "vector",
+            "hybrid"
+          ],
+          "reranker": [
+            "none",
+            "bge-reranker",
+            "cross-encoder"
+          ],
+          "top_k": [
+            4,
+            6,
+            8,
+            10
+          ],
+          "context_ordering": [
+            "retrieval_score",
+            "section_then_score",
+            "diverse_then_score"
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 6,
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "AutoRAG-style search space generated from retrieval diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "generator-prompt-optimization",
+        "tool": "dspy",
+        "target_component": "generation",
+        "description": "Optimize grounded answer synthesis and citation behavior.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "faithfulness": 0.35,
+          "response_relevancy": 0.2,
+          "answer_correctness": 0.25,
+          "citation_accuracy": 0.2
+        },
+        "search_space": {
+          "optimizer": [
+            "MIPROv2",
+            "BootstrapFewShot",
+            "GEPA"
+          ],
+          "fewshot_count": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "prompt_style": [
+            "grounded_qa",
+            "claim_then_evidence",
+            "citation_first"
+          ],
+          "temperature": [
+            0.0,
+            0.2,
+            0.4
+          ],
+          "max_citations": [
+            1,
+            2,
+            3
+          ],
+          "decomposition": [
+            false,
+            true
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 6,
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "DSPy optimization surface generated from generation diagnosis.",
+        "config_artifacts": []
+      },
+      {
+        "name": "joint-pipeline-optimization",
+        "tool": "manual",
+        "target_component": "pipeline",
+        "description": "Run multi-objective search over retrieval/generation operating profiles when component-level root cause is mixed.",
+        "parameters": {
+          "diagnosis_summary": "Primary bottleneck: retrieval noise or weak ranking quality. 3 diagnosis hypotheses were generated.",
+          "planner": "ragdx"
+        },
+        "objectives": {
+          "answer_correctness": 0.45,
+          "citation_accuracy": 0.2,
+          "faithfulness": 0.2,
+          "context_recall": 0.15
+        },
+        "search_space": {
+          "retrieval_profile": [
+            "recall_heavy",
+            "balanced",
+            "precision_heavy"
+          ],
+          "generator_profile": [
+            "grounded_qa",
+            "citation_first"
+          ],
+          "verifier": [
+            "none",
+            "claim_checker"
+          ],
+          "context_budget": [
+            3000,
+            4500,
+            6000
+          ]
+        },
+        "search_strategy": "bayesian",
+        "max_trials": 4,
+        "status": "planned",
+        "baseline_score": null,
+        "candidate_score": null,
+        "notes": "Joint search is used when the pipeline bottleneck is mixed or inconclusive.",
+        "config_artifacts": []
+      }
+    ],
+    "rationale": [
+      "Retrieval-focused search was selected because the diagnosis indicates evidence miss or ranking noise.",
+      "Generator-side optimization was selected because the diagnosis indicates grounding, citation, or response formation issues.",
+      "A joint search was added to resolve mixed retrieval and generation failures with direct end-to-end tradeoff tracking."
+    ]
+  }
+}

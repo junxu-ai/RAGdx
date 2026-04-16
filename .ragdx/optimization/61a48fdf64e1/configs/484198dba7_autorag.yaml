@@ -1,0 +1,37 @@
+framework: autorag
+objective_metric: answer_correctness
+objectives:
+  context_recall: 0.35
+  context_precision: 0.25
+  answer_correctness: 0.25
+  citation_accuracy: 0.15
+yaml_template:
+  version: 1
+  optimization:
+    strategy: bayesian
+    trials: 6
+  node_lines:
+  - name: retrieval_line
+    nodes:
+    - kind: retrieval
+      name: bm25
+      params:
+        top_k: 4
+    - kind: reranker
+      name: none
+      params:
+        enabled: false
+    - kind: chunking
+      name: semantic_chunker
+      params:
+        chunk_size: 1024
+        chunk_overlap: 128
+  postprocess:
+    context_ordering: diverse_then_score
+search_parameters:
+  chunk_size: 1024
+  chunk_overlap: 128
+  retriever: bm25
+  reranker: none
+  top_k: 4
+  context_ordering: diverse_then_score

@@ -78,6 +78,13 @@ class RunStore:
     def load_session(self, session_id: str) -> OptimizationSession:
         return OptimizationSession.model_validate_json(self._session_path(session_id).read_text(encoding="utf-8"))
 
+    def upsert_session(self, session: OptimizationSession) -> OptimizationSession:
+        return self.save_session(session)
+
+    def session_exists(self, session_id: str) -> bool:
+        return self._session_path(session_id).exists()
+
+
     def list_sessions(self) -> List[OptimizationSession]:
         sessions = []
         for path in sorted(self.sessions_dir.glob("*.json"), reverse=True):

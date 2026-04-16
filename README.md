@@ -150,7 +150,7 @@ Environment variables:
 
 ```bash
 export OPENAI_API_KEY=your_key
-export RAGDX_OPENAI_MODEL=gpt-5.4-thinking
+export RAGDX_OPENAI_MODEL=gpt-5-mini
 ```
 
 ## Optimization planning
@@ -273,10 +273,10 @@ Example high-level shape:
 framework: dspy
 optimizer: MIPROv2
 objectives:
-  faithfulness: 0.35
-  response_relevancy: 0.20
-  answer_correctness: 0.25
-  citation_accuracy: 0.20
+  faithfulness: 0.85
+  response_relevancy: 0.80
+  answer_correctness: 0.85
+  citation_accuracy: 0.90
 search_parameters:
   optimizer: MIPROv2
   fewshot_count: 4
@@ -389,3 +389,72 @@ The next practical extension is to connect `prepare_only` configurations to your
 - ingestion of completed external trial scores back into `ragdx`
 
 That would turn the current orchestration and monitoring layer into a live optimization loop.
+
+
+## Live optimization execution and monitoring
+
+`ragdx` now supports three optimization modes:
+
+- `simulate`: run the internal optimizer simulator
+- `prepare_only`: write configs without launching external tools
+- `execute`: launch external runners, ingest scores, and checkpoint session progress after every trial
+
+### External runner commands
+
+In `execute` mode, `ragdx` reads tool-specific command templates from environment variables. Each template can use these placeholders:
+
+- `{config}`: path to the generated YAML config
+- `{output}`: path where the runner must write a JSON result file
+- `{workdir}`: working directory for trial artifacts
+- `{trial_id}`: the ragdx trial id
+- `{session_id}`: the ragdx session id
+- `{tool}`: tool name
+
+Supported variables:
+
+- `RAGDX_DSPY_RUNNER_CMD`
+- `RAGDX_AUTORAG_RUNNER_CMD`
+- `RAGDX_MANUAL_RUNNER_CMD`
+
+Example:
+
+```bash
+export RAGDX_DSPY_RUNNER_CMD='python scripts/run_dspy_trial.py --config {config} --output {output}'
+export RAGDX_AUTORAG_RUNNER_CMD='python scripts/run_autorag_trial.py --config {config} --output {output}'
+```
+
+Each runner should write JSON containing either:
+
+```json
+{
+  "objective_scores": {
+    "answer_correctness": 0.79,
+    "citation_accuracy": 0.82
+  }
+}
+```
+
+or a normalized metrics document with `retrieval`, `generation`, and/or `e2e` sections.
+
+### Execute and monitor
+
+```bash
+ragdx optimize examples/demo_evaluation.json --strategy bayesian --budget 8 --mode execute
+ragdx sessions
+ragdx monitor-session <SESSION_ID>
+streamlit run src/ragdx/ui/dashboard.py
+```
+
+The dashboard session tab now shows:
+
+- current progress
+- best trial
+- Pareto-front trials
+- config YAML
+- runner logs
+- runner JSON outputs
+
+Because `ragdx` checkpoints the session JSON after each trial, the dashboard can monitor long-running optimization jobs while they are still executing.
+
+
+If a runner command is not configured for a planned experiment, `ragdx` falls back to simulated scoring by default during `execute` mode. To force hard failures instead, set `RAGDX_FALLBACK_SIMULATE_ON_MISSING_RUNNER=0`.

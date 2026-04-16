@@ -3,10 +3,13 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
+import os
 import random
+import shlex
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, List
 from uuid import uuid4
 
 import yaml
@@ -23,6 +26,7 @@ from ragdx.schemas.models import (
     OptimizationTrial,
     SearchStrategy,
 )
+from ragdx.storage.run_store import RunStore
 
 
 class OptimizationExecutor:
@@ -30,9 +34,13 @@ class OptimizationExecutor:
         self.root = Path(root)
         self.dspy = DSPyAdapter()
         self.autorag = AutoRAGAdapter()
+        self.store = RunStore(self.root)
 
     def _timestamp(self) -> str:
         return datetime.now(timezone.utc).isoformat()
+
+    def _checkpoint(self, session: OptimizationSession) -> None:
+        self.store.save_session(session)
 
     def _enumerate_candidates(self, search_space: Dict[str, List[Any]], limit: int) -> List[Dict[str, Any]]:
         keys = list(search_space.keys())
@@ -132,21 +140,19 @@ class OptimizationExecutor:
                 front.append(trial.trial_id)
         return front
 
-    def _sample_bayesian(self, candidates: List[Dict[str, Any]], trials: List[OptimizationTrial], objectives: Dict[str, float]) -> Dict[str, Any]:
+    def _sample_bayesian(self, candidates: List[Dict[str, Any]], trials: List[OptimizationTrial]) -> Dict[str, Any]:
         observed = {json.dumps(t.parameters, sort_keys=True): t for t in trials}
         remaining = [c for c in candidates if json.dumps(c, sort_keys=True) not in observed]
         if not remaining:
             return candidates[0]
         if not trials:
             return remaining[0]
-
-        value_stats: Dict[Tuple[str, Any], List[float]] = {}
+        value_stats: Dict[tuple[str, Any], List[float]] = {}
         for t in trials:
             if t.utility is None:
                 continue
             for k, v in t.parameters.items():
                 value_stats.setdefault((k, v), []).append(t.utility)
-
         def score_candidate(candidate: Dict[str, Any]) -> float:
             total = 0.0
             count = 0
@@ -157,7 +163,6 @@ class OptimizationExecutor:
                     count += 1
             prior = self._hash_score(candidate) * 0.1
             return (total / count if count else 0.55) + prior
-
         ranked = sorted(remaining, key=score_candidate, reverse=True)
         return ranked[0]
 
@@ -175,7 +180,7 @@ class OptimizationExecutor:
         parent = random.Random(len(trials)).choice(front_trials)
         child = dict(parent.parameters)
         rng = random.Random(len(trials) * 17)
-        mutable_keys = [k for k in child.keys()]
+        mutable_keys = list(child.keys())
         for key in rng.sample(mutable_keys, k=max(1, min(2, len(mutable_keys)))):
             options = list({cand[key] for cand in candidates})
             child[key] = rng.choice(options)
@@ -202,6 +207,84 @@ class OptimizationExecutor:
         path.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True), encoding="utf-8")
         return str(path)
 
+    def _runner_template(self, tool: str) -> str | None:
+        mapping = {
+            "dspy": os.environ.get("RAGDX_DSPY_RUNNER_CMD"),
+            "autorag": os.environ.get("RAGDX_AUTORAG_RUNNER_CMD"),
+            "manual": os.environ.get("RAGDX_MANUAL_RUNNER_CMD"),
+        }
+        return mapping.get(tool)
+
+    def _parse_output_metrics(self, output_path: Path, objectives: Dict[str, float]) -> Dict[str, float]:
+        if not output_path.exists():
+            raise FileNotFoundError(f"Expected output file not found: {output_path}")
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+        if "objective_scores" in data and isinstance(data["objective_scores"], dict):
+            return {k: float(v) for k, v in data["objective_scores"].items()}
+        metrics: Dict[str, float] = {}
+        for bucket in ("retrieval", "generation", "e2e"):
+            if isinstance(data.get(bucket), dict):
+                metrics.update({k: float(v) for k, v in data[bucket].items()})
+        if not metrics and isinstance(data.get("metrics"), dict):
+            metrics = {k: float(v) for k, v in data["metrics"].items()}
+        selected = {k: metrics[k] for k in objectives.keys() if k in metrics}
+        if not selected:
+            raise ValueError(f"No objective metrics found in output file {output_path}")
+        return selected
+
+    def _execute_external_trial(self, session_id: str, experiment: OptimizationExperiment, trial: OptimizationTrial, baseline: EvaluationResult) -> None:
+        template = self._runner_template(experiment.tool)
+        if not template:
+            fallback = os.environ.get("RAGDX_FALLBACK_SIMULATE_ON_MISSING_RUNNER", "1")
+            if fallback == "1":
+                metrics = self._simulate_objectives(baseline, experiment, trial.parameters)
+                trial.objective_scores = metrics
+                trial.utility = self._utility(metrics, experiment.objectives)
+                trial.status = "done"
+                trial.logs.append(f"No external runner configured for tool={experiment.tool}; fell back to simulated scoring.")
+                return
+            trial.status = "failed"
+            trial.logs.append(f"No runner template configured for tool={experiment.tool}. Set the corresponding RAGDX_*_RUNNER_CMD environment variable.")
+            trial.notes = "Missing runner command template."
+            return
+        trial_dir = self.root / "optimization" / session_id / "outputs"
+        trial_dir.mkdir(parents=True, exist_ok=True)
+        output_path = trial_dir / f"{trial.trial_id}_metrics.json"
+        log_path = trial_dir / f"{trial.trial_id}.log"
+        command = template.format(
+            config=trial.config_path,
+            output=str(output_path),
+            workdir=str(trial_dir),
+            trial_id=trial.trial_id,
+            session_id=session_id,
+            tool=experiment.tool,
+        )
+        trial.runner_command = command
+        trial.output_path = str(output_path)
+        trial.log_path = str(log_path)
+        trial.logs.append(f"Launching external runner: {command}")
+        with open(log_path, "w", encoding="utf-8") as lf:
+            proc = subprocess.run(shlex.split(command), stdout=lf, stderr=subprocess.STDOUT, text=True)
+        trial.return_code = proc.returncode
+        if proc.returncode != 0:
+            trial.status = "failed"
+            trial.logs.append(f"External runner failed with return code {proc.returncode}.")
+            return
+        metrics = self._parse_output_metrics(output_path, experiment.objectives)
+        trial.objective_scores = metrics
+        trial.utility = self._utility(metrics, experiment.objectives)
+        trial.status = "done"
+        trial.logs.append(f"Loaded objective scores from {output_path}: {metrics}")
+
+    def _update_front_and_best(self, session: OptimizationSession) -> None:
+        front = self._pareto_front(session.trials)
+        session.pareto_front_ids = front
+        for t in session.trials:
+            t.pareto_front = t.trial_id in front
+        completed_with_util = [t for t in session.trials if t.utility is not None]
+        if completed_with_util:
+            session.best_trial_id = max(completed_with_util, key=lambda t: t.utility or 0.0).trial_id
+
     def execute_plan(
         self,
         plan: OptimizationPlan,
@@ -212,24 +295,27 @@ class OptimizationExecutor:
     ) -> OptimizationSession:
         session_id = uuid4().hex[:12]
         total_trials = sum(exp.max_trials for exp in plan.experiments)
+        initial_status = "running" if mode in {"simulate", "execute"} else "prepared"
         session = OptimizationSession(
             session_id=session_id,
             created_at=self._timestamp(),
             run_id=run_id,
             strategy=strategy,
             mode=mode,
-            status="running" if mode == "simulate" else "prepared",
+            status=initial_status,
             plan=plan,
             total_trials=total_trials,
         )
+        self._checkpoint(session)
 
         all_trials: List[OptimizationTrial] = []
         for exp in plan.experiments:
             session.current_experiment = exp.name
+            self._checkpoint(session)
             candidates = self._enumerate_candidates(exp.search_space, exp.max_trials)
             exp_trials: List[OptimizationTrial] = []
             for _ in range(exp.max_trials):
-                params = self._sample_bayesian(candidates, exp_trials, exp.objectives) if exp.search_strategy == "bayesian" else self._sample_pareto(candidates, exp_trials)
+                params = self._sample_bayesian(candidates, exp_trials) if exp.search_strategy == "bayesian" else self._sample_pareto(candidates, exp_trials)
                 trial_id = uuid4().hex[:10]
                 trial = OptimizationTrial(
                     trial_id=trial_id,
@@ -242,28 +328,34 @@ class OptimizationExecutor:
                 )
                 trial.config_path = self._write_config(session_id, exp, params, trial_id)
                 trial.logs.append(f"Configuration written to {trial.config_path}")
-                if mode == "simulate":
-                    metrics = self._simulate_objectives(baseline, exp, params)
-                    trial.objective_scores = metrics
-                    trial.utility = self._utility(metrics, exp.objectives)
-                    trial.status = "done"
-                    trial.logs.append(f"Simulated objective scores: {metrics}")
-                else:
-                    trial.logs.append("Prepared configuration only. External execution is not started by ragdx in this mode.")
-                trial.completed_at = self._timestamp()
-                exp_trials.append(trial)
                 all_trials.append(trial)
-                session.completed_trials += 1
-                front = self._pareto_front(all_trials)
-                session.pareto_front_ids = front
-                for t in all_trials:
-                    t.pareto_front = t.trial_id in front
-                completed_with_util = [t for t in all_trials if t.utility is not None]
-                if completed_with_util:
-                    session.best_trial_id = max(completed_with_util, key=lambda t: t.utility or 0.0).trial_id
-            exp.status = "done" if mode == "simulate" else "planned"
+                exp_trials.append(trial)
+                session.trials = all_trials
+                self._checkpoint(session)
 
-        session.trials = all_trials
-        session.status = "completed" if mode == "simulate" else "prepared"
+                try:
+                    if mode == "simulate":
+                        metrics = self._simulate_objectives(baseline, exp, params)
+                        trial.objective_scores = metrics
+                        trial.utility = self._utility(metrics, exp.objectives)
+                        trial.status = "done"
+                        trial.logs.append(f"Simulated objective scores: {metrics}")
+                    elif mode == "prepare_only":
+                        trial.logs.append("Prepared configuration only. External execution is not started by ragdx in this mode.")
+                    else:
+                        self._execute_external_trial(session_id, exp, trial, baseline)
+                except Exception as exc:
+                    trial.status = "failed"
+                    trial.notes = str(exc)
+                    trial.logs.append(f"Execution error: {exc}")
+                finally:
+                    trial.completed_at = self._timestamp()
+                    session.completed_trials += 1
+                    self._update_front_and_best(session)
+                    self._checkpoint(session)
+            exp.status = "done" if mode in {"simulate", "execute"} else "planned"
+
+        session.status = "completed" if mode in {"simulate", "execute"} else "prepared"
         session.current_experiment = None
+        self._checkpoint(session)
         return session

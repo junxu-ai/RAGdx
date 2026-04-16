@@ -1,0 +1,12 @@
+framework: ragdx-manual
+objective_metric: answer_correctness
+objectives:
+  answer_correctness: 0.45
+  citation_accuracy: 0.2
+  faithfulness: 0.2
+  context_recall: 0.15
+search_parameters:
+  retrieval_profile: balanced
+  generator_profile: grounded_qa
+  verifier: none
+  context_budget: 3000

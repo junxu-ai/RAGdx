@@ -41,7 +41,7 @@ def _build_engine(use_llm: bool = False, use_both: bool = False) -> RAGDiagnosis
     if not api_key:
         raise typer.BadParameter("OPENAI_API_KEY is required when using --use-llm or --use-both.")
 
-    model = os.environ.get("RAGDX_OPENAI_MODEL", "gpt-5-mini")
+    model = os.environ.get("RAGDX_OPENAI_MODEL", "")
     client = OpenAI(api_key=api_key)
 
     def llm_callable(prompt: str) -> str:
@@ -99,7 +99,7 @@ def optimize(
     eval_json: str,
     strategy: str = typer.Option("bayesian", help="Search strategy: bayesian or pareto_evolutionary."),
     budget: int = typer.Option(12, help="Trial budget to distribute across experiments."),
-    mode: str = typer.Option("simulate", help="Execution mode: simulate or prepare_only."),
+    mode: str = typer.Option("simulate", help="Execution mode: simulate, prepare_only, or execute."),
     save_run: bool = typer.Option(True, help="Save the run, diagnosis, plan, and optimization session."),
     name: str = "",
     use_llm: bool = typer.Option(False, help="Use LLM diagnosis instead of rule-based diagnosis."),
@@ -109,8 +109,8 @@ def optimize(
         raise typer.BadParameter("Use either --use-llm or --use-both, not both.")
     if strategy not in {"bayesian", "pareto_evolutionary"}:
         raise typer.BadParameter("strategy must be bayesian or pareto_evolutionary")
-    if mode not in {"simulate", "prepare_only"}:
-        raise typer.BadParameter("mode must be simulate or prepare_only")
+    if mode not in {"simulate", "prepare_only", "execute"}:
+        raise typer.BadParameter("mode must be simulate, prepare_only, or execute")
 
     result = _load_eval(eval_json)
     report, plan = _diagnose_and_plan(result, use_llm=use_llm, use_both=use_both, strategy=strategy, budget=budget)
@@ -222,3 +222,18 @@ def dashboard():
 
 if __name__ == "__main__":
     app()
+
+
+@app.command()
+def monitor_session(session_id: str, show_logs: bool = typer.Option(False, help="Show per-trial logs.")):
+    session = RunStore().load_session(session_id)
+    print(session.model_dump_json(indent=2) if show_logs else json.dumps({
+        "session_id": session.session_id,
+        "status": session.status,
+        "strategy": session.strategy,
+        "mode": session.mode,
+        "completed_trials": session.completed_trials,
+        "total_trials": session.total_trials,
+        "best_trial_id": session.best_trial_id,
+        "pareto_front_ids": session.pareto_front_ids,
+    }, indent=2))

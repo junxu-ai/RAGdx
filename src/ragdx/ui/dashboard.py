@@ -58,7 +58,7 @@ def load_result(uploaded_file) -> EvaluationResult:
 def main() -> None:
     st.set_page_config(page_title="ragdx dashboard", layout="wide")
     st.title("ragdx: RAG evaluation, diagnosis, and optimization")
-    st.caption("Inspect normalized metrics, diagnose root causes, define optimization plans, and monitor optimization sessions.")
+    st.caption("Inspect normalized metrics, diagnose root causes, define optimization plans, and monitor optimization sessions. For live monitoring, keep this page open and use Refresh session after or during CLI optimization runs.")
 
     store = RunStore()
     uploaded = st.sidebar.file_uploader("Upload evaluation JSON", type=["json"])
@@ -130,6 +130,7 @@ def main() -> None:
                     st.write(f"**Trial budget:** {exp.max_trials}")
 
     with tab4:
+        refresh = st.button("Refresh session")
         sessions = store.list_sessions()
         if not sessions:
             st.info("No optimization sessions found. Run `ragdx optimize ...` first.")
@@ -175,6 +176,20 @@ def main() -> None:
                 config_path = row.get("config_path")
                 if isinstance(config_path, str) and config_path:
                     st.code(open(config_path, "r", encoding="utf-8").read(), language="yaml")
+                log_path = row.get("log_path")
+                if isinstance(log_path, str) and log_path:
+                    st.subheader("Runner log")
+                    try:
+                        st.code(open(log_path, "r", encoding="utf-8").read(), language="text")
+                    except Exception:
+                        st.info("Log file not readable yet.")
+                output_path = row.get("output_path")
+                if isinstance(output_path, str) and output_path:
+                    st.subheader("Runner output")
+                    try:
+                        st.code(open(output_path, "r", encoding="utf-8").read(), language="json")
+                    except Exception:
+                        st.info("Output file not readable yet.")
 
     with tab5:
         saved_runs = store.list_runs()
