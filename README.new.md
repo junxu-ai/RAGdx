@@ -1,3 +1,5 @@
+
+![Alt text](docs/logo.png)
 # ragdx
 
 `ragdx` is a Python workbench for **RAG evaluation, diagnosis, optimization, and monitoring**.
