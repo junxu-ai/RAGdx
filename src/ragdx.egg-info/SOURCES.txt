@@ -41,6 +41,7 @@ tests/test_compare_and_store.py
 tests/test_diagnosis.py
 tests/test_feedback_and_causal.py
 tests/test_full_version_features.py
+tests/test_human_readable_plan.py
 tests/test_llm_diagnosis.py
 tests/test_llm_planner.py
 tests/test_optimization_session.py

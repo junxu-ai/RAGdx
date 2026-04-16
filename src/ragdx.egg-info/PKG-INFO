@@ -608,3 +608,36 @@ Behavior notes:
 - `--use-llm` or `--use-both` for diagnosis will also enable LLM-backed planning automatically
 - `--use-llm-planner` can be used independently when you want rule-based diagnosis but LLM-refined planning
 - if the LLM call fails or returns invalid JSON, the planner falls back to the deterministic baseline-aware heuristic plan
+
+
+## Human-readable plan inspection
+
+The optimizer now exposes two ways to inspect a baseline-relative plan more clearly.
+
+Generate a plan and print a human-readable explanation:
+
+```bash
+ragdx plan examples/demo_evaluation.json --human-readable
+```
+
+Explain a saved JSON plan file:
+
+```bash
+ragdx explain-plan path/to/plan.json
+```
+
+The optimization-plan dashboard tab also renders each experiment as a baseline-relative metric table with:
+
+- baseline value
+- target value
+- delta from baseline
+- maximize/minimize direction
+- improve/maintain/reduce mode
+- objective weights
+- constraint bounds
+
+This makes it easier to distinguish between:
+
+- objective weights, which are trade-off coefficients
+- target thresholds, which are baseline-relative planning targets
+- constraint bounds, which are feasibility limits
