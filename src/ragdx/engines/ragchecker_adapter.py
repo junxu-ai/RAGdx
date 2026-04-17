@@ -1,3 +1,36 @@
+"""
+RAGChecker Evaluation Adapter
+
+Main Idea:
+This module provides an adapter for the RAGChecker evaluation tool. It enables integration of RAGChecker's fact-checking and evaluation capabilities into the unified RAG diagnosis pipeline.
+
+Functionalities:
+- Score normalization: Converts RAGChecker metric names to standardized schema
+- Record preparation: Transforms DatasetRecord objects into RAGChecker-compatible format
+- Precomputed score handling: Processes externally computed RAGChecker scores
+- Evaluation preparation: Generates payloads for RAGChecker workflow integration
+
+Supported RAGChecker metrics:
+- precision, recall, claim_recall
+- context_utilization, hallucination, self_knowledge, faithfulness
+
+Usage:
+With precomputed scores:
+
+    from ragdx.engines.ragchecker_adapter import RAGCheckerAdapter
+
+    adapter = RAGCheckerAdapter()
+    scores = {"precision": 0.88, "hallucination": 0.05}
+    result = adapter.evaluate(records, raw_scores=scores)
+
+Prepare for RAGChecker evaluation:
+
+    prepared_result = adapter.evaluate(records)
+    # Use prepared_result.metadata["prepared_records"] with RAGChecker
+
+The adapter requires the 'ragchecker' package to be installed for full evaluation capabilities.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Iterable, Mapping

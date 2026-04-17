@@ -1,3 +1,42 @@
+"""
+Rule-Based Root Cause Analysis Engine
+
+Main Idea:
+This module implements a rule-based root cause analysis system for RAG pipeline diagnosis. It uses predefined causal graphs, metric thresholds, and probabilistic reasoning to identify the most likely causes of performance issues.
+
+Functionalities:
+- Threshold-based gap analysis: Identifies metrics falling below acceptable thresholds
+- Causal graph reasoning: Uses NetworkX-based causal graphs to propagate probabilities
+- Hypothesis generation: Creates structured hypotheses with severity, confidence, and evidence
+- Bayesian updating: Updates prior probabilities based on observed metric gaps
+- Action prioritization: Recommends remediation actions in order of expected leverage
+
+Key components analyzed:
+- Corpus chunking defects
+- Retrieval recall/precision issues
+- Context packing problems
+- Grounding failures
+- Citation binding issues
+- Evaluator instability
+- Distribution shifts
+
+Usage:
+Basic analysis:
+
+    from ragdx.engines.root_cause import RuleBasedRootCauseAnalyzer
+
+    analyzer = RuleBasedRootCauseAnalyzer()
+    report = analyzer.analyze(evaluation_result)
+
+With custom thresholds:
+
+    custom_thresholds = {"faithfulness": 0.95, "context_precision": 0.85}
+    analyzer = RuleBasedRootCauseAnalyzer(thresholds=custom_thresholds)
+    report = analyzer.analyze(evaluation_result)
+
+The analyzer produces diagnosis reports with prioritized hypotheses and recommended actions.
+"""
+
 from __future__ import annotations
 
 import math

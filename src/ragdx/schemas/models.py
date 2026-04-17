@@ -1,3 +1,36 @@
+"""
+Data Models and Schemas
+
+Main Idea:
+This module defines all the data models and schemas used throughout the RAG Diagnosis Library. It provides type-safe, validated data structures for evaluation results, diagnosis reports, optimization plans, and related entities.
+
+Functionalities:
+- Dataset records: Structures for RAG evaluation data (questions, answers, contexts)
+- Evaluation results: Standardized metrics across retrieval, generation, and end-to-end layers
+- Diagnosis reports: Structured diagnosis output with hypotheses and recommendations
+- Optimization plans: Experiment definitions and parameter spaces
+- Traces and feedback: Observability and user feedback data structures
+- Causal analysis: Models for root cause analysis and causal graphs
+
+Key model categories:
+- Input/Output: DatasetRecord, EvaluationResult, DiagnosisReport
+- Optimization: OptimizationPlan, OptimizationExperiment, OptimizationSession
+- Observability: QueryTrace, TraceSpan, FeedbackEvent
+- Analysis: CausalSignal, CausalGraph, DiagnosisHypothesis
+
+Usage:
+Import and instantiate models:
+
+    from ragdx.schemas.models import EvaluationResult, DatasetRecord
+
+    result = EvaluationResult(
+        retrieval={"context_precision": 0.85},
+        generation={"faithfulness": 0.92}
+    )
+
+All models use Pydantic for validation and provide JSON serialization methods.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional

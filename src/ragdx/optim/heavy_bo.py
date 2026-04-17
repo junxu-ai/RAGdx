@@ -1,3 +1,31 @@
+"""
+Heavy Bayesian Optimization Backend
+
+Main Idea:
+This module provides a Bayesian optimization backend for efficient parameter space exploration in RAG pipeline optimization. It integrates with the Ax optimization library for sophisticated hyperparameter tuning.
+
+Functionalities:
+- Parameter suggestion: Uses Bayesian optimization to suggest promising parameter combinations
+- Ax integration: Leverages AxClient for experiment management and optimization
+- Multi-objective support: Handles multiple optimization objectives with constraints
+- State management: Maintains optimization state across trials
+- Fallback handling: Gracefully handles missing dependencies
+
+Supported backends:
+- Ax: Facebook's Ax optimization framework
+- Internal: Simple fallback for basic parameter sampling
+
+Usage:
+Used by the optimization executor for Bayesian optimization:
+
+    from ragdx.optim.heavy_bo import HeavyBOBackend
+
+    backend = HeavyBOBackend()
+    suggestion = backend.suggest("ax", experiment, candidates, trials)
+
+The backend provides intelligent parameter suggestions to accelerate optimization convergence.
+"""
+
 from __future__ import annotations
 
 import json

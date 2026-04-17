@@ -1,3 +1,39 @@
+"""
+Streamlit Dashboard for RAG Diagnosis
+
+Main Idea:
+This module provides a comprehensive web-based dashboard for visualizing and interacting with RAG diagnosis results, optimization sessions, and performance metrics using Streamlit.
+
+Functionalities:
+- Metrics visualization: Interactive charts for evaluation results across layers
+- Diagnosis reports: Display hypotheses, confidence scores, and recommendations
+- Optimization tracking: Monitor trial progress, parameter spaces, and convergence
+- Trace analysis: Explore query traces with latency, cost, and citation data
+- Feedback management: View and analyze user feedback events
+- Comparison tools: Side-by-side comparison of evaluation results
+- Demo mode: Built-in demo data for testing and demonstration
+
+Dashboard sections:
+- Overview: High-level metrics and summary
+- Diagnosis: Detailed diagnosis report with causal analysis
+- Optimization: Trial results, parameter importance, and convergence plots
+- Traces: Query-level performance analysis
+- Feedback: User feedback and issue tracking
+- Comparison: Baseline vs current performance analysis
+
+Usage:
+Run the dashboard:
+
+    streamlit run src/ragdx/ui/dashboard.py
+
+Or integrate into your application:
+
+    from ragdx.ui.dashboard import main
+    main()
+
+The dashboard automatically loads data from the RunStore and provides interactive exploration capabilities.
+"""
+
 from __future__ import annotations
 
 import json

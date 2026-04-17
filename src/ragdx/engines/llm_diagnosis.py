@@ -1,3 +1,41 @@
+"""
+LLM-Powered Diagnosis and Explanation Engine
+
+Main Idea:
+This module provides LLM-powered diagnosis capabilities for RAG pipelines. It uses large language models to refine rule-based diagnoses, provide natural language explanations, and synthesize multiple diagnosis approaches.
+
+Functionalities:
+- Diagnosis refinement: Uses LLM to enhance rule-based diagnosis with causal reasoning
+- Multi-diagnosis synthesis: Combines rule-based and LLM diagnoses into unified reports
+- Structured output: Generates diagnosis reports with hypotheses, confidence scores, and action items
+- Customizable prompts: Supports custom prompt templates for different diagnosis scenarios
+- JSON output handling: Robust parsing of LLM responses into structured diagnosis reports
+
+Key features:
+- Causal analysis: Identifies root causes beyond surface-level metric analysis
+- Evidence-based reasoning: Requires metrics and evidence for all conclusions
+- Action prioritization: Orders remediation actions by expected leverage
+- Confidence scoring: Provides confidence levels for all hypotheses and recommendations
+
+Usage:
+Initialize with an LLM callable function:
+
+    def my_llm(prompt: str) -> str:
+        # Your LLM implementation
+        return response
+
+    from ragdx.engines.llm_diagnosis import LLMDiagnosisExplainer
+
+    explainer = LLMDiagnosisExplainer(llm_callable=my_llm)
+    refined_report = explainer.explain(evaluation_result, rule_based_report)
+
+For combined analysis:
+
+    final_report = explainer.summarize_both(evaluation_result, rule_report, llm_report)
+
+The LLM callable should accept a prompt string and return either a JSON string or dictionary.
+"""
+
 from __future__ import annotations
 
 import json

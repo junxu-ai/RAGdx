@@ -1,3 +1,37 @@
+"""
+Optimization Planning Engine
+
+Main Idea:
+This module provides intelligent planning for RAG pipeline optimization. It generates structured optimization plans with experiments, parameter ranges, and evaluation strategies based on diagnosis reports.
+
+Functionalities:
+- Plan generation: Creates optimization plans with prioritized experiments
+- LLM-enhanced planning: Uses LLMs to refine and improve optimization strategies
+- Multi-strategy support: Bayesian optimization, evolutionary algorithms, and custom strategies
+- Metric-aware planning: Considers metric types (maximize/minimize) and component relationships
+- Budget allocation: Distributes trial budgets across experiments based on expected impact
+
+Supported optimization strategies:
+- Bayesian optimization for continuous parameters
+- Evolutionary algorithms for discrete/complex spaces
+- LLM-guided planning for novel approaches
+
+Usage:
+Basic planning:
+
+    from ragdx.optim.planner import OptimizationPlanner
+
+    planner = OptimizationPlanner()
+    plan = planner.build_plan(diagnosis_report, result=evaluation_result)
+
+With LLM enhancement:
+
+    llm_planner = OptimizationPlanner(llm_callable=my_llm_function)
+    plan = llm_planner.build_plan(diagnosis_report, result=evaluation_result, strategy="bayesian", budget=20)
+
+The planner generates OptimizationPlan objects with experiments, parameter spaces, and evaluation instructions.
+"""
+
 from __future__ import annotations
 
 import json

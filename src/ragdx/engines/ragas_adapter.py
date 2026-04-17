@@ -1,3 +1,37 @@
+"""
+RAGAS Evaluation Adapter
+
+Main Idea:
+This module provides an adapter for the RAGAS (Retrieval-Augmented Generation Assessment) evaluation framework. It enables seamless integration of RAGAS metrics into the unified evaluation pipeline.
+
+Functionalities:
+- Score normalization: Converts RAGAS metric names to standardized schema
+- Record preparation: Transforms DatasetRecord objects into RAGAS-compatible format
+- Precomputed score handling: Processes externally computed RAGAS scores
+- Evaluation preparation: Generates payloads for RAGAS CLI or workflow integration
+
+Supported RAGAS metrics:
+- context_precision, context_recall, context_entity_recall
+- response_relevancy, faithfulness, noise_sensitivity
+- answer_correctness, answer_accuracy
+
+Usage:
+With precomputed scores:
+
+    from ragdx.engines.ragas_adapter import RagasAdapter
+
+    adapter = RagasAdapter()
+    scores = {"context_precision": 0.85, "faithfulness": 0.92}
+    result = adapter.evaluate(records, raw_scores=scores)
+
+Prepare for RAGAS evaluation:
+
+    prepared_result = adapter.evaluate(records)
+    # Use prepared_result.metadata["prepared_records"] with RAGAS
+
+The adapter requires the 'ragas' package to be installed for full evaluation capabilities.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Iterable, Mapping

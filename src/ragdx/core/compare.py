@@ -1,3 +1,27 @@
+"""
+Evaluation Result Comparison Utilities
+
+Main Idea:
+This module provides utilities for comparing evaluation results between different RAG pipeline runs or configurations. It calculates metric deltas and determines whether changes represent improvements or regressions.
+
+Functionalities:
+- compare_results: Compare two EvaluationResult objects and return detailed metric comparisons
+- Automatic direction detection: Determines if changes are improvements, regressions, or unchanged
+- Metric-specific logic: Handles metrics where lower values are better (e.g., noise_sensitivity, hallucination)
+- Comprehensive coverage: Compares all metrics across retrieval, generation, and end-to-end categories
+
+Usage:
+Compare current and baseline evaluation results:
+
+    from ragdx.core.compare import compare_results
+
+    comparisons = compare_results(current_eval, baseline_eval)
+    for comp in comparisons:
+        print(f"{comp.metric}: {comp.current:.3f} vs {comp.baseline:.3f} ({comp.direction})")
+
+The function returns a list of MetricComparison objects with current value, baseline value, delta, and direction.
+"""
+
 from __future__ import annotations
 
 from ragdx.schemas.models import EvaluationResult, MetricComparison

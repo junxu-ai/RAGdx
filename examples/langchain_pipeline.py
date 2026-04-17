@@ -1,3 +1,35 @@
+"""
+Example LangChain RAG Pipeline
+
+Main Idea:
+This example demonstrates how to create a simple RAG (Retrieval-Augmented Generation) pipeline using LangChain. It shows the basic structure for integrating retrieval and generation components in a chain.
+
+Functionalities:
+- Document storage: Creates sample documents with metadata
+- Retrieval component: Simple demo retriever that returns top-k documents
+- Answer generation: Combines question and retrieved contexts into an answer
+- Citation tracking: Includes source citations in the response
+- Configurable parameters: Supports runtime configuration for retriever_k
+
+Key components:
+- DemoRetriever: Mock retriever returning sample documents
+- Answer combiner: Generates responses based on retrieved contexts
+- Citation extraction: Tracks document sources for verifiability
+
+Usage:
+Create and use the pipeline:
+
+    from examples.langchain_pipeline import create_pipeline
+
+    config = {"runtime": {"retriever_k": 2}}
+    pipeline = create_pipeline(config)
+
+    result = pipeline.invoke({"input": "What is RAG?"})
+    print(result["answer"])  # Demo LangChain answer...
+
+This example is used for testing the LangChain adapter and demonstrating RAG pipeline integration.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict

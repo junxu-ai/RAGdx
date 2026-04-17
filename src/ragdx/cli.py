@@ -1,3 +1,34 @@
+"""
+Command-Line Interface for RAG Diagnosis Library
+
+Main Idea:
+This module provides a comprehensive command-line interface for the RAG Diagnosis Library, allowing users to perform diagnosis, optimization planning, execution, and management of RAG pipeline evaluations through simple terminal commands.
+
+Functionalities:
+- diagnose: Analyze evaluation results and generate diagnosis reports with optimization plans
+- plan: Create optimization plans for RAG pipelines based on evaluation data
+- optimize: Execute optimization plans using Bayesian or evolutionary strategies
+- compare: Compare evaluation results between current and baseline runs
+- save: Save evaluation results, diagnosis reports, and plans to persistent storage
+- attach_feedback: Attach user feedback events to existing runs for further analysis
+- explain-plan: Generate human-readable explanations of optimization plans
+
+The CLI supports both rule-based and LLM-powered diagnosis and planning modes, with options for simulation, preparation, or full execution of optimizations.
+
+Usage:
+Install the package and use the 'ragdx' command:
+
+    pip install -e .
+    ragdx diagnose evaluation_results.json --use-llm
+    ragdx plan evaluation_results.json --strategy bayesian --budget 20
+    ragdx optimize evaluation_results.json --mode execute
+    ragdx compare current_eval.json baseline_eval.json
+
+Environment Variables:
+- OPENAI_API_KEY: Required for LLM-powered features
+- RAGDX_OPENAI_MODEL: Optional, defaults to 'gpt-5.4-thinking'
+"""
+
 from __future__ import annotations
 
 import json

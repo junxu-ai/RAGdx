@@ -1,3 +1,38 @@
+"""
+Optimization Execution Engine
+
+Main Idea:
+This module provides the execution engine for RAG pipeline optimization. It runs optimization experiments, manages trial execution, and integrates with various RAG frameworks and optimization algorithms.
+
+Functionalities:
+- Plan execution: Runs optimization plans with multiple experiments and trials
+- Bayesian optimization: Uses Gaussian processes for efficient parameter space exploration
+- Framework adapters: Integrates with DSPy, AutoRAG, LangChain, LlamaIndex
+- Simulation mode: Simulates optimization for testing and demonstration
+- Trial management: Tracks trial results, constraints, and convergence
+- Checkpointing: Saves optimization state for resumability
+
+Supported execution modes:
+- simulate: Mock execution for testing
+- prepare_only: Generate configuration files without running
+- execute: Full execution with actual RAG framework integration
+
+Usage:
+Execute an optimization plan:
+
+    from ragdx.optim.executor import OptimizationExecutor
+
+    executor = OptimizationExecutor()
+    session = executor.execute_plan(
+        optimization_plan,
+        baseline=evaluation_result,
+        strategy="bayesian",
+        mode="simulate"
+    )
+
+The executor returns OptimizationSession objects with trial results and optimization history.
+"""
+
 from __future__ import annotations
 
 import hashlib

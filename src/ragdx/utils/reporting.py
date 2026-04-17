@@ -1,3 +1,37 @@
+"""
+Reporting and Formatting Utilities
+
+Main Idea:
+This module provides utilities for formatting, summarizing, and reporting RAG diagnosis and optimization data in human-readable formats. It converts complex data structures into clear, actionable summaries.
+
+Functionalities:
+- Plan summarization: Convert optimization plans into readable text with experiment details
+- Experiment formatting: Structure experiment descriptions with parameters and objectives
+- Target spec summaries: Format metric targets and constraints clearly
+- JSON export: Save data structures to JSON files
+- Value formatting: Consistent formatting for numeric values and metrics
+
+Key functions:
+- summarize_plan: Create human-readable optimization plan summaries
+- summarize_experiment: Format individual experiment details
+- summarize_target_spec: Describe metric targets and constraints
+- save_json: Export data to JSON format
+
+Usage:
+Summarize an optimization plan:
+
+    from ragdx.utils.reporting import summarize_plan
+
+    summary = summarize_plan(plan_dict)
+    print(summary)
+
+Save results to JSON:
+
+    save_json(evaluation_result.model_dump(), "results.json")
+
+These utilities are used by the CLI and dashboard for user-friendly output.
+"""
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,36 @@
+"""
+Dataset Loading and Processing Utilities
+
+Main Idea:
+This module provides utilities for loading, processing, and saving RAG evaluation datasets from various file formats. It handles the conversion between different data formats and the internal DatasetRecord model.
+
+Functionalities:
+- load_jsonl: Load dataset records from JSON Lines format
+- load_json: Load dataset records from JSON format (array or object with 'records' key)
+- load_csv: Load dataset records from CSV format with specific column mappings
+- load_records: Unified loader that automatically detects format from file extension
+- save_records_jsonl: Save dataset records to JSON Lines format
+
+Supported formats:
+- JSONL: One JSON object per line
+- JSON: Array of objects or object with 'records' array
+- CSV: Columns for question, ground_truth, answer, contexts (|| separated), reference_contexts (|| separated)
+
+Usage:
+Load a dataset:
+
+    from ragdx.core.datasets import load_records
+
+    records = load_records("evaluation_data.jsonl")
+    for record in records:
+        print(f"Q: {record.question}")
+        print(f"A: {record.answer}")
+
+Save processed records:
+
+    save_records_jsonl(records, "processed_data.jsonl")
+"""
+
 from __future__ import annotations
 
 import csv

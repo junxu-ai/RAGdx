@@ -1,3 +1,39 @@
+"""
+Persistent Storage for Runs and Sessions
+
+Main Idea:
+This module provides persistent storage functionality for RAG diagnosis runs, optimization sessions, and feedback data. It manages file-based storage with JSON serialization for reproducibility and analysis.
+
+Functionalities:
+- Run management: Save and load complete evaluation runs with diagnosis and optimization plans
+- Session storage: Persist optimization sessions with trial history and results
+- Feedback handling: Store and attach user feedback to runs
+- Metadata support: Tags, notes, and baseline tracking for runs
+- File organization: Structured directory layout for different data types
+
+Storage structure:
+- .ragdx/runs/: Individual evaluation runs
+- .ragdx/optimization/sessions/: Optimization execution sessions
+- .ragdx/feedback/: User feedback events
+- .ragdx/causal/: Causal analysis data
+
+Usage:
+Basic run storage:
+
+    from ragdx.storage.run_store import RunStore
+
+    store = RunStore()
+    run = store.save_run(evaluation_result, diagnosis_report, optimization_plan)
+
+Load and manage runs:
+
+    run = store.load_run("run_id")
+    runs = store.list_runs()
+    latest = store.latest()
+
+All data is stored as JSON files for easy inspection and version control.
+"""
+
 from __future__ import annotations
 
 import json

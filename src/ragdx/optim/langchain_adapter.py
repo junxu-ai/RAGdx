@@ -1,3 +1,32 @@
+"""
+LangChain Framework Adapter
+
+Main Idea:
+This module provides an adapter for optimizing RAG pipelines built with LangChain. It generates configuration specifications for LangChain-based retrieval chains and integrates with the optimization workflow.
+
+Functionalities:
+- Configuration generation: Creates runner specifications for LangChain experiments
+- Parameter mapping: Maps optimization parameters to LangChain configuration
+- Framework integration: Supports various LangChain components (LLMs, retrievers, vector stores)
+- Contract definition: Defines the interface between optimization and execution
+
+Supported LangChain components:
+- LLM providers: OpenAI, Anthropic, local models
+- Vector stores: FAISS, Chroma, Pinecone
+- Retrievers: Similarity search, MMR, contextual compression
+- Rerankers: Cross-encoder reranking, LLM-based reranking
+
+Usage:
+Build optimization spec:
+
+    from ragdx.optim.langchain_adapter import LangChainAdapter
+
+    adapter = LangChainAdapter()
+    spec = adapter.build_runner_spec(experiment, parameters)
+
+The adapter prepares configurations that can be executed by LangChain-based runners for optimization trials.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict
